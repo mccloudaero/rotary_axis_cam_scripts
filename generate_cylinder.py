@@ -26,7 +26,7 @@ rough_pass_values = {
     'plunge' : 2,
     'material_to_leave' : 0.02,
     'max_depth_per_pass' : 0.125,
-    'stepover' : 0.4,
+    'max_stepover' : 0.125*0.4,
 }
 tool_values = {
     'diameter' : 0.125,
@@ -61,6 +61,7 @@ output.write('G0 G90 G54 G17 G40 G49 G80\n') # Safe start line
 # Find the starting point for the first row
 first_row_center_x = isogrid_values['start_flange'] + excess_length + apothem 
 output.write('G0 X{:5.3f} Y0.0\n'.format(first_row_center_x))    # Rapid to XY position
+output.write('G52 X{:5.3f} Y0.0\n'.format(first_row_center_x))   # Switch to local coordinate system 
 output.write('M98 P1000\n')                                      # Call subprogram number 1000
 
 # End Main Program
@@ -73,22 +74,31 @@ print('\nRoughing')
 # Depth calcs
 depth_to_rough = cylinder_dimensions['wall_t']-isogrid_values['skin_t']-rough_pass_values['material_to_leave']
 depth_passes = math.ceil(depth_to_rough/rough_pass_values['max_depth_per_pass'])
+depth_per_pass = depth_to_rough/depth_passes
+print('Depth Values')
 print('Depth to rough: {:5.3f}'.format(depth_to_rough))
 print('Depth Passes: {:3d}'.format(depth_passes))
+print('Depth per pass: {:5.3f}'.format(depth_per_pass))
 
-increment = tool_values['diameter']*rough_pass_values['stepover'] 
-inside = apothem-isogrid_values['rib_t']/2-rough_pass_values['material_to_leave']
-num_passes = inside/increment 
-print('Increment: {:5.3f}'.format(increment))
-print('Inside: {:5.3f}'.format(inside))
-print('Num Passes: {:5.3f}'.format(num_passes))
+rough_apothem = apothem-isogrid_values['rib_t']/2-rough_pass_values['material_to_leave']
+rough_passes = math.ceil(rough_apothem/rough_pass_values['max_stepover']) 
+rough_stepover = rough_apothem/rough_passes
+print('\nHorizontal Values')
+print('Distance to rough: {:5.3f}'.format(rough_apothem))
+print('Passes: {:5.3f}'.format(rough_passes))
+print('Stepover: {:5.3f}'.format(rough_stepover))
 
 output.write('\nO1000 (ROUGH PASS BEGIN)\n') # Subprogram number
+for i in range(1,depth_passes+1):
+    print(i)
+    output.write('G1 Z{:5.3f} F{:5.3f}\n'.format(-i*depth_per_pass,2))    # Plunge into material 
 
-output.write('G0 X{:5.3f} Y0.0\n'.format(first_row_center_x))    # Plunge into material 
-
-for i in range(3):
-    output.write('G0 X{:5.3f} Y0.0\n'.format(first_row_center_x))    # Rapid to XY position
+    for j in range(1,rough_passes):
+        output.write('G1 X{:5.3f} Y{:5.3f} F2.0\n'.format(-j*rough_stepover,0.0))  # First triangle point
+        output.write('G1 X{:5.3f} Y{:5.3f} F2.0\n'.format(-j*rough_stepover,j*rough_stepover*(3**0.5)))  # First triangle point
+        output.write('G1 X{:5.3f} Y{:5.3f} F2.0\n'.format(j*rough_stepover*2,0.0))  # First triangle point
+        output.write('G1 X{:5.3f} Y{:5.3f} F2.0\n'.format(-j*rough_stepover,-j*rough_stepover*(3**0.5)))  # First triangle point
+        output.write('G1 X{:5.3f} Y{:5.3f} F2.0\n'.format(-j*rough_stepover,0.0))  # First triangle point
     
 output.write('M99\n') # Return to main program
 
