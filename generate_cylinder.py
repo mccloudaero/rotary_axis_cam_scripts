@@ -60,9 +60,16 @@ output.write('G0 G90 G54 G17 G40 G49 G80\n') # Safe start line
 
 # Find the starting point for the first row
 first_row_center_x = isogrid_values['start_flange'] + excess_length + apothem 
-output.write('G0 X{:5.3f} Y0.0\n'.format(first_row_center_x))    # Rapid to XY position
-output.write('G52 X{:5.3f} Y0.0\n'.format(first_row_center_x))   # Switch to local coordinate system 
-output.write('M98 P1000\n')                                      # Call subprogram number 1000
+
+# Process Rows
+for i in range(1):
+    cell_x = first_row_center_x
+    # Process Cells in Row
+    for j in range(2):
+        cell_y = j*pattern_height
+        output.write('G0 X{:5.3f} Y{:5.3f}\n'.format(cell_x,cell_y))    # Rapid to XY position
+        output.write('G52 X{:5.3f} Y{:5.3f}\n'.format(cell_x,cell_y))   # Switch to local coordinate system 
+        output.write('M98 P1000\n')                                      # Call subprogram number 1000
 
 # End Main Program
 output.write('M30\n') # Program end and rewind
