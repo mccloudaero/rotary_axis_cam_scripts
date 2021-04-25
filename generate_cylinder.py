@@ -59,22 +59,30 @@ output = open('test.nc','w')
 output.write('G0 G90 G54 G17 G40 G49 G80\n') # Safe start line
 
 # Find the starting point for the first row
-first_row_center_x = isogrid_values['start_flange'] + excess_length + apothem 
+first_row_center_x1 = isogrid_values['start_flange'] + excess_length + apothem 
+first_row_center_x2 = isogrid_values['start_flange'] + excess_length + pattern_height - apothem 
 
 # Process Rows
 for i in range(1):
-    cell_x = first_row_center_x
+    cell_x1 = first_row_center_x1
+    cell_x2 = first_row_center_x2
     # Process Cells in Row
     for j in range(2):
         cell_y = j*pattern_height
-        output.write('G0 X{:5.3f} Y{:5.3f}\n'.format(cell_x,cell_y))    # Rapid to XY position
-        output.write('G52 X{:5.3f} Y{:5.3f}\n'.format(cell_x,cell_y))   # Switch to local coordinate system 
-        output.write('M98 P1000\n')                                      # Call subprogram number 1000
+        # Cut First Cell
+        output.write('G0 X{:5.3f} Y{:5.3f}\n'.format(cell_x1,cell_y))    # Rapid to XY position
+        output.write('G52 X{:5.3f} Y{:5.3f}\n'.format(cell_x1,cell_y))   # Switch to local coordinate system 
+        output.write('M98 P1001\n')                                      # Call subprogram number 1000
+        cell_y = j*pattern_height + 0.5*pattern_height
+        # Cut Next Cell, Swithcing the direction
+        output.write('G0 X{:5.3f} Y{:5.3f}\n'.format(cell_x2,cell_y))    # Rapid to XY position
+        output.write('G52 X{:5.3f} Y{:5.3f}\n'.format(cell_x2,cell_y))   # Switch to local coordinate system 
+        output.write('M98 P1002\n')                                      # Call subprogram number 1000
 
 # End Main Program
 output.write('M30\n') # Program end and rewind
 
-# ROUGH SUBPROGRAM MACRO
+# ROUGH SUBPROGRAM MACROS
 
 # Compute the number of roughing passes from the center to the sides
 print('\nRoughing')
@@ -95,19 +103,34 @@ print('Distance to rough: {:5.3f}'.format(rough_apothem))
 print('Passes: {:5.3f}'.format(rough_passes))
 print('Stepover: {:5.3f}'.format(rough_stepover))
 
-output.write('\nO1000 (ROUGH PASS BEGIN)\n') # Subprogram number
+# Start strings for subprograms
+subprogram_1_string = '\n'
+subprogram_2_string = '\n'
+
+subprogram_1_string += 'O1001 (ROUGH PASS CELL 1 BEGIN)\n' # Subprogram number
+subprogram_2_string += 'O1002 (ROUGH PASS CELL 2 BEGIN)\n' # Subprogram number
 for i in range(1,depth_passes+1):
     print(i)
-    output.write('G1 Z{:5.3f} F{:5.3f}\n'.format(-i*depth_per_pass,2))    # Plunge into material 
+    subprogram_1_string += 'G1 Z{:5.3f} F{:5.3f}\n'.format(-i*depth_per_pass,2)    # Plunge into material 
+    subprogram_2_string += 'G1 Z{:5.3f} F{:5.3f}\n'.format(-i*depth_per_pass,2)    # Plunge into material 
 
     for j in range(1,rough_passes):
-        output.write('G1 X{:5.3f} Y{:5.3f} F2.0\n'.format(-j*rough_stepover,0.0))  # First triangle point
-        output.write('G1 X{:5.3f} Y{:5.3f} F2.0\n'.format(-j*rough_stepover,j*rough_stepover*(3**0.5)))  # First triangle point
-        output.write('G1 X{:5.3f} Y{:5.3f} F2.0\n'.format(j*rough_stepover*2,0.0))  # First triangle point
-        output.write('G1 X{:5.3f} Y{:5.3f} F2.0\n'.format(-j*rough_stepover,-j*rough_stepover*(3**0.5)))  # First triangle point
-        output.write('G1 X{:5.3f} Y{:5.3f} F2.0\n'.format(-j*rough_stepover,0.0))  # First triangle point
+        subprogram_1_string += 'G1 X{:5.3f} Y{:5.3f} F2.0\n'.format(-j*rough_stepover,0.0)  # First triangle point
+        subprogram_1_string += 'G1 X{:5.3f} Y{:5.3f} F2.0\n'.format(-j*rough_stepover,j*rough_stepover*(3**0.5))  # First triangle point
+        subprogram_1_string += 'G1 X{:5.3f} Y{:5.3f} F2.0\n'.format(j*rough_stepover*2,0.0)  # First triangle point
+        subprogram_1_string += 'G1 X{:5.3f} Y{:5.3f} F2.0\n'.format(-j*rough_stepover,-j*rough_stepover*(3**0.5))  # First triangle point
+        subprogram_1_string += 'G1 X{:5.3f} Y{:5.3f} F2.0\n'.format(-j*rough_stepover,0.0)  # First triangle point
+
+        subprogram_2_string += 'G1 X{:5.3f} Y{:5.3f} F2.0\n'.format(j*rough_stepover,0.0)  # First triangle point
+        subprogram_2_string += 'G1 X{:5.3f} Y{:5.3f} F2.0\n'.format(j*rough_stepover,j*rough_stepover*(3**0.5))  # First triangle point
+        subprogram_2_string += 'G1 X{:5.3f} Y{:5.3f} F2.0\n'.format(-j*rough_stepover*2,0.0)  # First triangle point
+        subprogram_2_string += 'G1 X{:5.3f} Y{:5.3f} F2.0\n'.format(j*rough_stepover,-j*rough_stepover*(3**0.5))  # First triangle point
+        subprogram_2_string += 'G1 X{:5.3f} Y{:5.3f} F2.0\n'.format(j*rough_stepover,0.0)  # First triangle point
     
-output.write('M99\n') # Return to main program
+subprogram_1_string += 'M99\n' # Return to main program
+subprogram_2_string += 'M99\n' # Return to main program
+output.write(subprogram_1_string)
+output.write(subprogram_2_string)
 
 # Close file
 output.close()
