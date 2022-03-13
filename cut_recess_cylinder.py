@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 import sys
 import math
+import numpy as np
+import probe
 
 # Create gcode to cut recess in cylinder in a manner that accepts pre-probe
 # results. Instead of cutting in a spiral pattern, cut are made in circles.
@@ -17,6 +19,7 @@ inputs = {
     'pattern_size' : 1.571,
     'num_rows': 4,
     'rib_width': 0.05,
+    'use_probe_file': True
 }
 cutter_inputs = {
     'mill_diameter' : 0.25,
@@ -26,6 +29,10 @@ cutter_inputs = {
     'feedrate_plunge' : 0.75,
     'feedrate_linear': 5.0, # IPM
 }
+
+if inputs['use_probe_file']:
+    # Load module for interpolation
+    from scipy import interpolate
 
 outer_radius = inputs['outer_diameter']/2.0
 
@@ -44,15 +51,25 @@ x_end = x_start + dx_recess
 
 # Z-axis Data
 safe_z_height = outer_radius + cutter_inputs['safe_clearance']
-z_recess = outer_radius - inputs['recess_depth'] + cutter_inputs['material_to_leave']
+dz_recess = inputs['recess_depth'] + cutter_inputs['material_to_leave']
+z_recess_nominal = outer_radius - dz_recess 
 
-
+print('\nRecess Dimensions')
 print('Triangle Height: {:4.3f}'.format(triangle_height))
 print('X start: {:5.4f}'.format(x_start))
 print('X end: {:5.4f}'.format(x_end))
-print('Z recess: {:5.4f}'.format(z_recess))
+print('Z recess: {:5.4f}'.format(z_recess_nominal))
+
+# Read Probe Data if needed
+print('\nReading Probe Data')
+probe_num_X, probe_num_A, probe_X, probe_Z, probe_A = probe.read_cylinder_probe_file('probe_results.txt')
+probe_X_values = np.unique(probe_X)
+probe_A_values = np.unique(probe_A)
+print('Interpolating Probe Data')
+probe_f = interpolate.RectBivariateSpline(probe_X_values, probe_A_values, probe_Z)
 
 # Open File
+print('\nWriting Gcode')
 output_file = open('test.nc','w')
 
 # Write Header
@@ -68,7 +85,7 @@ output_file.write('G0 Z {:5.4f} (Safe Z height)\n'.format(safe_z_height))
 output_file.write('G0 X {:5.4f} Y 0.0000 A 0.0000\n'.format(x_start))
 
 # Plunge into material
-local_z = z_recess
+local_z = z_recess_nominal
 output_file.write('G1 Z {:5.4f} (plunge cut)\n'.format(local_z))
 
 # First Cut
@@ -76,22 +93,31 @@ output_file.write('(first cut)\n')
 x_current = x_start
 A_absolute = 0
 for A in A_values:
-    # Interpolate Z based on X and A (0-360)
-    z_local = z_recess
+    if inputs['use_probe_file']:
+        # Interpolate Z based on X and A (0-360)
+        z_local = probe_f(x_current, A)[0,0] - dz_recess
+    else:
+        z_local = z_recess_nominal
     A_absolute += angular_increment
     output_file.write('G1 Z {:5.4f} A {:6.2f} F {:3.2f} ({:6.2f})\n'.format(z_local, A_absolute, 1.0, A))
 x_current += dx_stepover
 
 # Keep Cutting
 while x_current < x_end:
-    # Interpolate Z based on X and A (0-360)
-    z_local = z_recess
+    if inputs['use_probe_file']:
+        # Interpolate Z based on X and A (0-360)
+        z_local = probe_f(x_current, 0)[0,0] - dz_recess
+    else:
+        z_local = z_recess_nominal
     
     # Move in X direction
     output_file.write('G1 X {:5.4f} Z {:5.4f}\n'.format(x_current, z_local))
     for A in A_values:
-        # Interpolate Z based on X and A (0-360)
-        z_local = z_recess
+        if inputs['use_probe_file']:
+            # Interpolate Z based on X and A (0-360)
+            z_local = probe_f(x_current, A)[0,0] - dz_recess
+        else:
+            z_local = z_recess_nominal
         A_absolute += angular_increment
         output_file.write('G1 Z {:5.4f} A {:6.2f} F {:3.2f} ({:6.2f})\n'.format(z_local, A_absolute, 1.0, A))
     
@@ -102,12 +128,16 @@ while x_current < x_end:
 output_file.write('(final cut)\n')
 x_current = x_end
 # Interpolate Z based on X and A (0-360)
-z_local = z_recess
+z_local = z_recess_nominal
     
 # Move in X direction
 output_file.write('G1 X {:5.4f} Z {:5.4f}\n'.format(x_current, z_local))
 for A in A_values:
-    z_local = z_recess
+    if inputs['use_probe_file']:
+        # Interpolate Z based on X and A (0-360)
+        z_local = probe_f(x_current, A)[0,0] - dz_recess
+    else:
+        z_local = z_recess_nominal
     output_file.write('G1 Z {:5.4f} A {:6.2f} F {:3.2f} ({:6.2f})\n'.format(z_local, A_absolute, 1.0, A))
 
 output_file.write('M30\n')
