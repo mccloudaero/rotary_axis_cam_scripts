@@ -4,8 +4,9 @@ import math
 import numpy as np
 import probe
 
-# Create gcode to cut recess in cylinder in a manner that accepts pre-probe
+# Create G-code to cut recess in cylinder in a manner that accepts pre-probe
 # results. Instead of cutting in a spiral pattern, cut are made in circles.
+# Inverse Time mode (G93) is used to specify feed rates
 
 
 # Script assumes
@@ -19,6 +20,7 @@ inputs = {
     'pattern_size' : 1.571,
     'num_rows': 4,
     'rib_width': 0.05,
+    'angular_increment': 30,
     'use_probe_file': True
 }
 cutter_inputs = {
@@ -37,8 +39,8 @@ if inputs['use_probe_file']:
 outer_radius = inputs['outer_diameter']/2.0
 
 # Angular Data
-angular_increment = 30 # degrees
-A_values = range(30, 390, angular_increment)
+angular_increment = inputs['angular_increment']
+A_values = range(angular_increment, angular_increment + 360, angular_increment)
 angular_increment_distance = math.pi/180.0*angular_increment*outer_radius
 
 # X-axis Data
@@ -52,7 +54,7 @@ x_end = x_start + dx_recess
 # Z-axis Data
 safe_z_height = outer_radius + cutter_inputs['safe_clearance']
 dz_recess = inputs['recess_depth'] + cutter_inputs['material_to_leave']
-z_recess_nominal = outer_radius - dz_recess 
+z_recess_nominal = outer_radius - dz_recess
 
 print('\nRecess Dimensions')
 print('Triangle Height: {:4.3f}'.format(triangle_height))
@@ -78,6 +80,7 @@ output_file.write('G90   (set absolute distance mode)\n')
 output_file.write('G90.1 (set absolute distance mode for arc centers)\n')
 output_file.write('G17   (set active plane to XY)\n')
 output_file.write('G20   (set units to inches)\n')
+output_file.write('G94   (standard feed rates)\n')
 output_file.write('\n')
 
 # Position at Start
@@ -85,11 +88,19 @@ output_file.write('G0 Z {:5.4f} (Safe Z height)\n'.format(safe_z_height))
 output_file.write('G0 X {:5.4f} Y 0.0000 A 0.0000\n'.format(x_start))
 
 # Plunge into material
-local_z = z_recess_nominal
-output_file.write('G1 Z {:5.4f} (plunge cut)\n'.format(local_z))
+if inputs['use_probe_file']:
+    # Interpolate Z based on X and A (0-360)
+    z_local = probe_f(x_start, 0.0)[0,0] - dz_recess
+else:
+    z_local = z_recess_nominal
+output_file.write('G1 Z {:5.4f} F {:3.2f} (plunge cut)\n'.format(z_local,cutter_inputs['feedrate_plunge']))
 
 # First Cut
+# Cut at fraction of full speed since it's cutting the full width of the bit
+current_feedrate_linear = cutter_inputs['feedrate_linear']*0.75
+current_feedrate_inverse_t = current_feedrate_linear/angular_increment_distance
 output_file.write('(first cut)\n')
+output_file.write('G93 (switch to inverse time)\n')
 x_current = x_start
 A_absolute = 0
 for A in A_values:
@@ -99,10 +110,12 @@ for A in A_values:
     else:
         z_local = z_recess_nominal
     A_absolute += angular_increment
-    output_file.write('G1 Z {:5.4f} A {:6.2f} F {:3.2f} ({:6.2f})\n'.format(z_local, A_absolute, 1.0, A))
+    output_file.write('G1 Z {:5.4f} A {:6.2f} F {:5.4f} ({:6.2f})\n'.format(z_local, A_absolute, current_feedrate_inverse_t, A))
 x_current += dx_stepover
 
 # Keep Cutting
+current_feedrate_linear = cutter_inputs['feedrate_linear']
+current_feedrate_inverse_t = current_feedrate_linear/angular_increment_distance
 while x_current < x_end:
     if inputs['use_probe_file']:
         # Interpolate Z based on X and A (0-360)
@@ -111,7 +124,13 @@ while x_current < x_end:
         z_local = z_recess_nominal
     
     # Move in X direction
-    output_file.write('G1 X {:5.4f} Z {:5.4f}\n'.format(x_current, z_local))
+    current_feedrate_linear = cutter_inputs['feedrate_linear']*0.75
+    current_feedrate_inverse_t = current_feedrate_linear/dx_stepover
+    
+    output_file.write('G1 X {:5.4f} Z {:5.4f} F {:5.4f}\n'.format(x_current, z_local, current_feedrate_inverse_t))
+    
+    current_feedrate_linear = cutter_inputs['feedrate_linear']
+    current_feedrate_inverse_t = current_feedrate_linear/angular_increment_distance
     for A in A_values:
         if inputs['use_probe_file']:
             # Interpolate Z based on X and A (0-360)
@@ -119,7 +138,7 @@ while x_current < x_end:
         else:
             z_local = z_recess_nominal
         A_absolute += angular_increment
-        output_file.write('G1 Z {:5.4f} A {:6.2f} F {:3.2f} ({:6.2f})\n'.format(z_local, A_absolute, 1.0, A))
+        output_file.write('G1 Z {:5.4f} A {:6.2f} F {:5.4f} ({:6.2f})\n'.format(z_local, A_absolute, current_feedrate_inverse_t, A))
     
     # Increment X
     x_current += dx_stepover
@@ -131,15 +150,24 @@ x_current = x_end
 z_local = z_recess_nominal
     
 # Move in X direction
-output_file.write('G1 X {:5.4f} Z {:5.4f}\n'.format(x_current, z_local))
+current_feedrate_linear = cutter_inputs['feedrate_linear']*0.75
+current_feedrate_inverse_t = current_feedrate_linear/dx_stepover
+output_file.write('G1 X {:5.4f} Z {:5.4f} F {:5.4f}\n'.format(x_current, z_local, current_feedrate_inverse_t))
+
+current_feedrate_linear = cutter_inputs['feedrate_linear']
+current_feedrate_inverse_t = current_feedrate_linear/angular_increment_distance
 for A in A_values:
     if inputs['use_probe_file']:
         # Interpolate Z based on X and A (0-360)
         z_local = probe_f(x_current, A)[0,0] - dz_recess
     else:
         z_local = z_recess_nominal
-    output_file.write('G1 Z {:5.4f} A {:6.2f} F {:3.2f} ({:6.2f})\n'.format(z_local, A_absolute, 1.0, A))
+    output_file.write('G1 Z {:5.4f} A {:6.2f} F {:5.4f} ({:6.2f})\n'.format(z_local, A_absolute, current_feedrate_inverse_t, A))
 
-output_file.write('M30\n')
+# Raise to safe Z height
+output_file.write('G94 (switch back to normal feed rate)\n')
+output_file.write('G0 Z {:5.4f} (Safe Z height)\n'.format(safe_z_height))
+
+output_file.write('M5 M2\n')
 # Close File
 output_file.close()
