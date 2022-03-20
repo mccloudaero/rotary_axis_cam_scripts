@@ -29,7 +29,7 @@ cutter_inputs = {
     'material_to_leave' : 0.01,
     'safe_clearance' : 0.1,
     'feedrate_plunge' : 0.75,
-    'feedrate_linear': 5.0, # IPM
+    'feedrate_linear': 7.0, # IPM
 }
 
 if inputs['use_probe_file']:
@@ -55,6 +55,9 @@ x_end = x_start + dx_recess
 safe_z_height = outer_radius + cutter_inputs['safe_clearance']
 dz_recess = inputs['recess_depth'] + cutter_inputs['material_to_leave']
 z_recess_nominal = outer_radius - dz_recess
+
+# Time (min)
+total_time = 0.0
 
 print('\nRecess Dimensions')
 print('Triangle Height: {:4.3f}'.format(triangle_height))
@@ -94,6 +97,7 @@ if inputs['use_probe_file']:
 else:
     z_local = z_recess_nominal
 output_file.write('G1 Z {:5.4f} F {:3.2f} (plunge cut)\n'.format(z_local,cutter_inputs['feedrate_plunge']))
+total_time += (safe_z_height - z_local)/cutter_inputs['feedrate_plunge']
 
 # First Cut
 # Cut at fraction of full speed since it's cutting the full width of the bit
@@ -111,6 +115,7 @@ for A in A_values:
         z_local = z_recess_nominal
     A_absolute += angular_increment
     output_file.write('G1 Z {:5.4f} A {:6.2f} F {:5.4f} ({:6.2f})\n'.format(z_local, A_absolute, current_feedrate_inverse_t, A))
+    total_time += 1.0/current_feedrate_inverse_t
 x_current += dx_stepover
 
 # Keep Cutting
@@ -128,6 +133,7 @@ while x_current < x_end:
     current_feedrate_inverse_t = current_feedrate_linear/dx_stepover
     
     output_file.write('G1 X {:5.4f} Z {:5.4f} F {:5.4f}\n'.format(x_current, z_local, current_feedrate_inverse_t))
+    total_time += 1.0/current_feedrate_inverse_t
     
     current_feedrate_linear = cutter_inputs['feedrate_linear']
     current_feedrate_inverse_t = current_feedrate_linear/angular_increment_distance
@@ -139,6 +145,7 @@ while x_current < x_end:
             z_local = z_recess_nominal
         A_absolute += angular_increment
         output_file.write('G1 Z {:5.4f} A {:6.2f} F {:5.4f} ({:6.2f})\n'.format(z_local, A_absolute, current_feedrate_inverse_t, A))
+        total_time += 1.0/current_feedrate_inverse_t
     
     # Increment X
     x_current += dx_stepover
@@ -153,6 +160,7 @@ z_local = z_recess_nominal
 current_feedrate_linear = cutter_inputs['feedrate_linear']*0.75
 current_feedrate_inverse_t = current_feedrate_linear/dx_stepover
 output_file.write('G1 X {:5.4f} Z {:5.4f} F {:5.4f}\n'.format(x_current, z_local, current_feedrate_inverse_t))
+total_time += 1.0/current_feedrate_inverse_t
 
 current_feedrate_linear = cutter_inputs['feedrate_linear']
 current_feedrate_inverse_t = current_feedrate_linear/angular_increment_distance
@@ -163,11 +171,16 @@ for A in A_values:
     else:
         z_local = z_recess_nominal
     output_file.write('G1 Z {:5.4f} A {:6.2f} F {:5.4f} ({:6.2f})\n'.format(z_local, A_absolute, current_feedrate_inverse_t, A))
+    total_time += 1.0/current_feedrate_inverse_t
 
 # Raise to safe Z height
 output_file.write('G94 (switch back to normal feed rate)\n')
 output_file.write('G0 Z {:5.4f} (Safe Z height)\n'.format(safe_z_height))
 
+print('Machining Time Required: {:4.0f} mins'.format(total_time))
+print('                         {:3.2f} hrs'.format(total_time/60.0))
+
 output_file.write('M5 M2\n')
+
 # Close File
 output_file.close()
