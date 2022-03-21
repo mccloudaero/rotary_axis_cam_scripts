@@ -15,7 +15,7 @@ delta_R = Z - Z[0][0]
 
 # Contour Plot
 fig, ax = plt.subplots()
-contour = ax.contourf(X, A, delta_R)
+contour = ax.contourf(X, A, delta_R, cmap = 'RdBu')
 ax.plot(X, A, 'k.')
 cbar = fig.colorbar(contour)
 cbar.ax.set_ylabel('Delta_R (in)')
