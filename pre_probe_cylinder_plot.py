@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import probe
 
 # Read in cylinder probe data
-num_X, num_A, X, Z, A = probe.read_cylinder_probe_file('probe_results.txt')
+num_X, num_A, X, Z, A = probe.read_cylinder_probe_file('probe_file.txt')
 X_values = np.unique(X)
 A_values = np.unique(A)
 

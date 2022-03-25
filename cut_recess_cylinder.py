@@ -21,7 +21,8 @@ inputs = {
     'num_rows': 4,
     'rib_width': 0.05,
     'angular_increment': 30,
-    'use_probe_file': True
+    'use_probe_file': True,
+    'output_file': None
 }
 cutter_inputs = {
     'mill_diameter' : 0.25,
@@ -53,7 +54,7 @@ x_end = x_start + dx_recess
 
 # Z-axis Data
 safe_z_height = outer_radius + cutter_inputs['safe_clearance']
-dz_recess = inputs['recess_depth'] + cutter_inputs['material_to_leave']
+dz_recess = inputs['recess_depth'] - cutter_inputs['material_to_leave']
 z_recess_nominal = outer_radius - dz_recess
 
 # Time (min)
@@ -63,19 +64,42 @@ print('\nRecess Dimensions')
 print('Triangle Height: {:4.3f}'.format(triangle_height))
 print('X start: {:5.4f}'.format(x_start))
 print('X end: {:5.4f}'.format(x_end))
+print('dZ recess: {:5.4f}'.format(dz_recess))
 print('Z recess: {:5.4f}'.format(z_recess_nominal))
 
 # Read Probe Data if needed
-print('\nReading Probe Data')
-probe_num_X, probe_num_A, probe_X, probe_Z, probe_A = probe.read_cylinder_probe_file('probe_results.txt')
-probe_X_values = np.unique(probe_X)
-probe_A_values = np.unique(probe_A)
-print('Interpolating Probe Data')
+if inputs['use_probe_file']:
+    print('\nReading Probe Data')
+    probe_num_X, probe_num_A, probe_X, probe_Z, probe_A = probe.read_cylinder_probe_file('probe_file.txt')
+    probe_X_values = np.unique(probe_X)
+    probe_A_values = np.unique(probe_A)
+    probe_Z_min = np.min(probe_Z)
+    probe_Z_max = np.max(probe_Z)
+    probe_Z_delta = probe_Z_max - probe_Z_min
+    print('  Z Min: {:5.4f}'.format(probe_Z_min))
+    print('  Z Max: {:5.4f}'.format(probe_Z_max))
+    print('  Z Delta: {:5.4f}'.format(probe_Z_delta))
+    
+print('\nInterpolating Probe Data')
 probe_f = interpolate.RectBivariateSpline(probe_X_values, probe_A_values, probe_Z)
+max_error, avg_error = probe.interpolation_check(probe_f, probe_X_values, probe_A_values, probe_Z)
+print('  Max Error: {:5.4e}'.format(max_error))
 
-# Open File
-print('\nWriting Gcode')
-output_file = open('test.nc','w')
+# Open Output File
+if inputs['output_file'] is None:
+    # Autocreate filename
+    output_filename = 'cut_recess_'
+    output_filename += str(inputs['outer_diameter']) + '_od_'
+    output_filename += str(cutter_inputs['mill_diameter']) + '_bit_'
+    output_filename += 'leave_' + str(cutter_inputs['material_to_leave'])
+    if inputs['use_probe_file']: output_filename += '_autolevel'
+    output_filename += '.nc'
+    
+ 
+else:
+    output_filename = inputs['output_file']
+print('\nWriting Gcode to:', output_filename)
+output_file = open(output_filename,'w')
 
 # Write Header
 output_file.write('(G-code automatically written using cut_recess_cylinder.py)\n')
@@ -94,10 +118,13 @@ output_file.write('G0 X {:5.4f} Y 0.0000 A 0.0000\n'.format(x_start))
 if inputs['use_probe_file']:
     # Interpolate Z based on X and A (0-360)
     z_local = probe_f(x_start, 0.0)[0,0] - dz_recess
+    z_local_min = z_local
+    z_local_max = z_local
 else:
     z_local = z_recess_nominal
 output_file.write('G1 Z {:5.4f} F {:3.2f} (plunge cut)\n'.format(z_local,cutter_inputs['feedrate_plunge']))
 total_time += (safe_z_height - z_local)/cutter_inputs['feedrate_plunge']
+
 
 # First Cut
 # Cut at fraction of full speed since it's cutting the full width of the bit
@@ -111,6 +138,8 @@ for A in A_values:
     if inputs['use_probe_file']:
         # Interpolate Z based on X and A (0-360)
         z_local = probe_f(x_current, A)[0,0] - dz_recess
+        z_local_min = min(z_local, z_local_min)
+        z_local_max = max(z_local, z_local_max)
     else:
         z_local = z_recess_nominal
     A_absolute += angular_increment
@@ -124,7 +153,9 @@ current_feedrate_inverse_t = current_feedrate_linear/angular_increment_distance
 while x_current < x_end:
     if inputs['use_probe_file']:
         # Interpolate Z based on X and A (0-360)
-        z_local = probe_f(x_current, 0)[0,0] - dz_recess
+        z_local = probe_f(x_current, 0)[0,0]  - dz_recess
+        z_local_min = min(z_local, z_local_min)
+        z_local_max = max(z_local, z_local_max)
     else:
         z_local = z_recess_nominal
     
@@ -141,6 +172,8 @@ while x_current < x_end:
         if inputs['use_probe_file']:
             # Interpolate Z based on X and A (0-360)
             z_local = probe_f(x_current, A)[0,0] - dz_recess
+            z_local_min = min(z_local, z_local_min)
+            z_local_max = max(z_local, z_local_max)
         else:
             z_local = z_recess_nominal
         A_absolute += angular_increment
@@ -154,7 +187,13 @@ while x_current < x_end:
 output_file.write('(final cut)\n')
 x_current = x_end
 # Interpolate Z based on X and A (0-360)
-z_local = z_recess_nominal
+if inputs['use_probe_file']:
+    # Interpolate Z based on X and A (0-360)
+    z_local = probe_f(x_current, 0.0)[0,0] - dz_recess
+    z_local_min = min(z_local, z_local_min)
+    z_local_max = max(z_local, z_local_max)
+else:
+    z_local = z_recess_nominal
     
 # Move in X direction
 current_feedrate_linear = cutter_inputs['feedrate_linear']*0.75
@@ -168,6 +207,8 @@ for A in A_values:
     if inputs['use_probe_file']:
         # Interpolate Z based on X and A (0-360)
         z_local = probe_f(x_current, A)[0,0] - dz_recess
+        z_local_min = min(z_local, z_local_min)
+        z_local_max = max(z_local, z_local_max)
     else:
         z_local = z_recess_nominal
     output_file.write('G1 Z {:5.4f} A {:6.2f} F {:5.4f} ({:6.2f})\n'.format(z_local, A_absolute, current_feedrate_inverse_t, A))
@@ -176,6 +217,10 @@ for A in A_values:
 # Raise to safe Z height
 output_file.write('G94 (switch back to normal feed rate)\n')
 output_file.write('G0 Z {:5.4f} (Safe Z height)\n'.format(safe_z_height))
+
+if inputs['use_probe_file']:
+    print('  Z Cut Min: {:5.4f}'.format(z_local_min))
+    print('  Z Cut Max: {:5.4f}'.format(z_local_max))
 
 print('Machining Time Required: {:4.0f} mins'.format(total_time))
 print('                         {:3.2f} hrs'.format(total_time/60.0))
