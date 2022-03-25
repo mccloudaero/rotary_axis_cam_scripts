@@ -42,6 +42,7 @@ outer_radius = inputs['outer_diameter']/2.0
 # Angular Data
 angular_increment = inputs['angular_increment']
 A_values = range(angular_increment, angular_increment + 360, angular_increment)
+A_values_fc = range(360-angular_increment, -angular_increment, -angular_increment)
 angular_increment_distance = math.pi/180.0*angular_increment*outer_radius
 
 # X-axis Data
@@ -111,8 +112,9 @@ output_file.write('G94   (standard feed rates)\n')
 output_file.write('\n')
 
 # Position at Start
+# Start at A=360 for first cut
 output_file.write('G0 Z {:5.4f} (Safe Z height)\n'.format(safe_z_height))
-output_file.write('G0 X {:5.4f} Y 0.0000 A 0.0000\n'.format(x_start))
+output_file.write('G0 X {:5.4f} Y 0.0000 A 360.0000\n'.format(x_start))
 
 # Plunge into material
 if inputs['use_probe_file']:
@@ -127,14 +129,16 @@ total_time += (safe_z_height - z_local)/cutter_inputs['feedrate_plunge']
 
 
 # First Cut
+# Need to make first cut moving in the Negative A axis to leave a good edge
+# on the flange. Start at A=360 to keep interpolation values positive
 # Cut at fraction of full speed since it's cutting the full width of the bit
 current_feedrate_linear = cutter_inputs['feedrate_linear']*0.75
 current_feedrate_inverse_t = current_feedrate_linear/angular_increment_distance
 output_file.write('(first cut)\n')
 output_file.write('G93 (switch to inverse time)\n')
 x_current = x_start
-A_absolute = 0
-for A in A_values:
+A_absolute = 360
+for A in A_values_fc:
     if inputs['use_probe_file']:
         # Interpolate Z based on X and A (0-360)
         z_local = probe_f(x_current, A)[0,0] - dz_recess
@@ -142,7 +146,7 @@ for A in A_values:
         z_local_max = max(z_local, z_local_max)
     else:
         z_local = z_recess_nominal
-    A_absolute += angular_increment
+    A_absolute -= angular_increment
     output_file.write('G1 Z {:5.4f} A {:6.2f} F {:5.4f} ({:6.2f})\n'.format(z_local, A_absolute, current_feedrate_inverse_t, A))
     total_time += 1.0/current_feedrate_inverse_t
 x_current += dx_stepover
