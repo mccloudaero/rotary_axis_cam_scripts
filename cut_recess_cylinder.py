@@ -215,6 +215,7 @@ for A in A_values:
         z_local_max = max(z_local, z_local_max)
     else:
         z_local = z_recess_nominal
+    A_absolute -= angular_increment
     output_file.write('G1 Z {:5.4f} A {:6.2f} F {:5.4f} ({:6.2f})\n'.format(z_local, A_absolute, current_feedrate_inverse_t, A))
     total_time += 1.0/current_feedrate_inverse_t
 
