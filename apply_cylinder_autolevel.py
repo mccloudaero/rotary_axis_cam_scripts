@@ -14,15 +14,18 @@ import probe
 input_file = open('input.nc','r')
 output_file = open('output.nc','w')
 
-G_commands = ['G0','G00','G1','G01']
-
+# The input Gcode file is built assuming a particular reference height (z_ref).
+# Typically this will be the nominal outer diameter of the material.
 z_ref = 3.0
+
+# Variables and defaults
+G_commands = ['G0','G00','G1','G01']
 z_safe = None
 
 x_current = 0
 a_current = 0
 
-# Store if last line is 'plunge' or 'first' or None
+# Store if last line is 'plunge', 'first' or None
 last_line = None
 last_Z = None
 
@@ -30,6 +33,15 @@ print('\nReading Probe Data')
 probe_num_X, probe_num_A, probe_X, probe_Z, probe_A = probe.read_cylinder_probe_file('probe_file.txt')
 probe_X_values = np.unique(probe_X)
 probe_A_values = np.unique(probe_A)
+
+# Check Probe Data dimensions
+probe_dim = None
+if probe_X_values.size == 1:
+    print('Probe Data is 2D (A and Z)')
+    probe_dim = 1
+else:
+    print('Probe Data is 3D (X, A and Z)')
+    probe_dim = 2
 
 # Convert Z to delta Z map
 dZ = probe_Z - z_ref
@@ -40,10 +52,14 @@ print('  dZ Min: {:5.4f}'.format(dZ_min))
 print('  dZ Max: {:5.4f}'.format(dZ_max))
 
     
-print('\nInterpolating Probe Data')
-probe_f = interpolate.RectBivariateSpline(probe_X_values, probe_A_values, dZ)
-max_error, avg_error = probe.interpolation_check(probe_f, probe_X_values, probe_A_values, dZ)
-print('  Max Error: {:5.4e}'.format(max_error))
+if probe_dim == 1:
+    print('\nInterpolating Probe Data in A axis only')
+    probe_f = interpolate.interp1d(probe_A_values, dZ)
+elif probe_dim == 2:
+    print('\nInterpolating Probe Data in X and A axes')
+    probe_f = interpolate.RectBivariateSpline(probe_X_values, probe_A_values, dZ)
+    max_error, avg_error = probe.interpolation_check(probe_f, probe_X_values, probe_A_values, dZ)
+    print('  Max Error: {:5.4e}'.format(max_error))
 
 for line in input_file:
     if line[0] == '%':
@@ -87,14 +103,22 @@ for line in input_file:
                     z_safe = z_current
                     print('\nZ Safe Height is: {:4.3f}'.format(z_safe))                
                 if z_current != z_safe:
-                    # Interpolate dZ based on X and A
-                    dz_current = probe_f(x_current, a_current)[0,0]
+                    if probe_dim == 1:
+                        # Interpolate dZ based on A only
+                        dz_current = probe_f(a_current)[0]
+                    elif probe_dim == 2:
+                        # Interpolate dZ based on X and A
+                        dz_current = probe_f(x_current, a_current)[0,0]
                     command[z_index] = '{:5.4f}'.format(z_current + dz_current)
                     #print(x_current, a_current, z_current, dz_current)
             else:
                 if z_current != z_safe:
-                    # Add interpolated Z
-                    dz_current = probe_f(x_current, a_current)[0,0]
+                    if probe_dim == 1:
+                        # Interpolate dZ based on A only
+                        dz_current = probe_f(a_current)[0]
+                    elif probe_dim == 2:
+                        # Interpolate dZ based on X and A
+                        dz_current = probe_f(x_current, a_current)[0,0]
                     command.insert(f_index, '{:5.4f}'.format(z_current + dz_current))
                     command.insert(f_index, 'Z')
             # Rebuild command with whitespace
@@ -108,17 +132,18 @@ for line in input_file:
             # Don't modify all other GXX commands
             output_file.write(line)
             last_line = None
-    elif line[0] == 'X' or line[0] == 'Y':
-        # Don't modify
-        output_file.write(line)
-        if last_line == 'plunge':
-            output_file.write('G1 F{:.4f}\n'.format(current_F*second_cut_factor))
-            last_line = 'first'
-        elif last_line == 'first':
-            output_file.write('G1 F{:.4f}\n'.format(current_F))
-            last_line = None
-        else:
-            last_line = None
+    # Plunge adjust logic here
+    #elif line[0] == 'X' or line[0] == 'Y':
+    #    # Don't modify
+    #    output_file.write(line)
+    #    if last_line == 'plunge':
+    #        output_file.write('G1 F{:.4f}\n'.format(current_F*second_cut_factor))
+    #        last_line = 'first'
+    #    elif last_line == 'first':
+    #        output_file.write('G1 F{:.4f}\n'.format(current_F))
+    #        last_line = None
+    #    else:
+    #        last_line = None
 
 input_file.close()
 output_file.close()

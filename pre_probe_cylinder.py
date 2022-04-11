@@ -8,10 +8,10 @@ import math
 
 inputs = {
     'outer_diameter' : 6.0,
-    'num_x_points' : 5,
+    'num_x_points' : 1,
     'num_a_points' : 12,
-    'start_x' : 0.3125,
-    'end_x' : 5.704,
+    'start_x' : 0,
+    'end_x' : 0,
     'safe_clearance': 0.1,
     'min_probe_depth': -0.1,
     'probe_feedrate': 1.0,
@@ -22,7 +22,13 @@ outer_radius = inputs['outer_diameter']/2.0
 safe_z_height = outer_radius + inputs['safe_clearance']
 probe_min_z = outer_radius + inputs['min_probe_depth']
 
-delta_x = (inputs['end_x'] - inputs['start_x'])/(inputs['num_x_points']-1)
+if inputs['num_x_points'] < 1:
+    print('\nInvalid number of X points\nExiting!')
+    sys.exit(1)
+if inputs['num_x_points'] == 1:
+    delta_x = None
+else:
+    delta_x = (inputs['end_x'] - inputs['start_x'])/(inputs['num_x_points']-1)
 delta_a = 360.0/inputs['num_a_points']
 
 # Open File
