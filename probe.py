@@ -2,6 +2,7 @@
 
 import sys
 import numpy as np
+from scipy import interpolate
 
 def read_cylinder_probe_file(filename):
 
@@ -24,6 +25,19 @@ def read_cylinder_probe_file(filename):
     A_final = np.append(A, A_c1, axis=1)
     
     return num_X, num_A, X_final, Z_final, A_final
+
+
+def setup_interpolation(X, A, Z, probe_dim):
+    if probe_dim == 1:
+        print('\nInterpolating Probe Data in A axis only')
+        f = interpolate.interp1d(A, Z)
+    elif probe_dim == 2:
+        print('\nInterpolating Probe Data in X and A axes')
+        f = interpolate.RectBivariateSpline(X, A, Z)
+        max_error, avg_error = probe.interpolation_check(f, X, A, Z)
+        print('  Max Error: {:5.4e}'.format(max_error))
+    
+    return f
     
 
 def interpolation_check(probe_f, X_values, A_values, Z_values):
