@@ -78,7 +78,7 @@ print('Number of Passes: {:5.4f}'.format(num_passes))
 # Read Probe Data if needed
 if inputs['use_probe_file']:
     print('\nReading Probe Data')
-    probe_num_X, probe_num_A, probe_X, probe_Z, probe_A = probe.read_cylinder_probe_file('probe_file.txt')
+    probe_num_X, probe_num_A, probe_X, probe_Z, probe_A = probe.read_cylinder_probe_file('probe_results.txt')
     probe_X_values = np.unique(probe_X)
     probe_A_values = np.unique(probe_A)
     
@@ -159,7 +159,6 @@ while z_current >= z_final:
             if probe_dim == 1:
                 # Interpolate dZ based on A only
                 dz_current = probe_f(A)[0]
-                print(dz_current)
             elif probe_dim == 2:
                 # Interpolate dZ based on X and A
                 dz_current = probe_f(x_groove, a_current)[0,0]
