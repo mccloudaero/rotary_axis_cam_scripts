@@ -34,7 +34,7 @@ def setup_interpolation(X, A, Z, probe_dim):
     elif probe_dim == 2:
         print('\nInterpolating Probe Data in X and A axes')
         f = interpolate.RectBivariateSpline(X, A, Z)
-        max_error, avg_error = probe.interpolation_check(f, X, A, Z)
+        max_error, avg_error = interpolation_check(f, X, A, Z)
         print('  Max Error: {:5.4e}'.format(max_error))
     
     return f
