@@ -14,17 +14,17 @@ import probe
 #   2) Ignores X-axis, unless it's specified.
 
 inputs = {
-    'outer_diameter' : 6.0,
-    'groove_depth' : 0.1,
-    'x_loc': None,
-    'angular_increment': 30,
-    'direction': -1,
+    'outer_diameter' : 12.75,
+    'groove_depth' : 0.1153 + 0.155,
+    'x_loc': -0.1637,
+    'angular_increment': 15,
+    'direction': 1,
     'use_probe_file': True,
     'output_file': None
 }
 cutter_inputs = {
     'safe_clearance' : 0.1,
-    'depth_per_pass' : 0.02,
+    'depth_per_pass' : 0.1153+0.155,
     'feedrate_plunge' : 0.75,
     'feedrate_linear': 7.0, # IPM
 }
@@ -39,7 +39,6 @@ z_ref = outer_radius
 # Angular Data
 angular_increment = inputs['angular_increment']
 direction = inputs['direction']
-A_values = range(angular_increment*direction, angular_increment*direction + 360*direction, angular_increment*direction)
 
 if direction == 1:
     A_values = range(angular_increment, angular_increment + 360, angular_increment)
@@ -73,7 +72,7 @@ if inputs['x_loc'] is not None:
     print('Groove X: {:5.4f}'.format(inputs['x_loc']))
 print('Final Groove Depth: {:5.4f}'.format(inputs['groove_depth']))
 print('Depth per Pass: {:5.4f}'.format(cutter_inputs['depth_per_pass']))
-print('Number of Passes: {:5.4f}'.format(num_passes))
+print('Number of Passes: {:3d}'.format(num_passes))
 
 # Read Probe Data if needed
 if inputs['use_probe_file']:
@@ -135,7 +134,8 @@ else:
     output_file.write('G0 Y 0.0000 A {:5.4f}\n'.format(a_current))
 
 A_absolute = 0
-while z_current >= z_final:
+done = False
+while done is False:
     output_file.write('({:2.2f} cut)\n'.format(z_current))
     # Plunge into material
     if inputs['use_probe_file']:
@@ -167,7 +167,11 @@ while z_current >= z_final:
         output_file.write('G1 Z {:5.4f} A {:6.2f} F {:5.4f} ({:6.2f})\n'.format(z_local, A_absolute, current_feedrate_inverse_t, A))
         total_time += 1.0/current_feedrate_inverse_t
     output_file.write('G94 (switch back to normal feed rate)\n')
-    z_current -= cutter_inputs['depth_per_pass']
+    if z_current == z_final:
+        done = True
+    else:
+        z_current -= cutter_inputs['depth_per_pass']
+        z_current = max(z_current,z_final)
 
 # Raise to safe Z height
 output_file.write('G0 Z {:5.4f} (Safe Z height)\n'.format(safe_z_height))
@@ -176,6 +180,7 @@ print('Machining Time Required: {:4.0f} mins'.format(total_time))
 print('                         {:3.2f} hrs'.format(total_time/60.0))
 
 output_file.write('M5 M2\n')
+output_file.write('(Machine Time Required: {:4.0f} mins)'.format(total_time))
 
 # Close File
 output_file.close()
