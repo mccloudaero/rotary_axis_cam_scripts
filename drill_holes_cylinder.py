@@ -15,6 +15,7 @@ import probe
 
 inputs = {
     'outer_diameter' : 12.75,
+    'hole_diameter' : 0.089,
     'drill_depth' : 0.4,
     'x_loc': -0.259,
     'angular_increment': 15,
@@ -23,10 +24,17 @@ inputs = {
     'output_file': None
 }
 cutter_inputs = {
+    'mill_diameter' : 0.0625,
     'safe_clearance' : 0.1,
     'feedrate_plunge' : 0.75,
     'feedrate_linear': 7.0, # IPM
 }
+
+# Check mill diameter
+if cutter_inputs['mill_diameter'] > inputs['hole_diameter']:
+    print('Error! Mill diameter is larger than hole diameter')
+    sys.exit()    
+
 
 if inputs['use_probe_file']:
     # Load module for interpolation
@@ -57,7 +65,6 @@ if inputs['x_loc'] is not None:
 # Z-axis Data
 safe_z_height = outer_radius + cutter_inputs['safe_clearance']
 drill_depth = inputs['drill_depth']
-num_passes = int(math.ceil(drill_depth/cutter_inputs['depth_per_pass']))
 
 z_final = outer_radius - drill_depth
 
