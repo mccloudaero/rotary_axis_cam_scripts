@@ -14,23 +14,24 @@ import probe
 #   2) X = 0 is the start of the cylinder
 
 inputs = {
-    'outer_diameter' : 12.75,
-    'recess_depth' : 0.1153 + 0.1550,
+    'outer_diameter' : 12.0,
+    'recess_depth' : 0.06,
     'isogrid' : False,
-    'x_start' : -0.416,
-    'x_end' : -0.1012,
+    'x_start' : -3.75,
+    'x_end' : 0.04,
     'angular_increment': 15,
-    'use_probe_file': True,
+    'direction': -1,
+    'use_probe_file': False,
     'output_file': None
 }
 cutter_inputs = {
-    'mill_diameter' : 0.25,
+    'mill_diameter' : 0.5,
     'overlap' : 0.4,
     'material_to_leave' : 0.0,
     'safe_clearance' : 0.1,
-    'depth_per_pass' : 0.1153 + 0.1550,
+    'depth_per_pass' : 0.10,
     'feedrate_plunge' : 0.5,  # IPM
-    'feedrate_linear': 10.0,   # IPM
+    'feedrate_linear': 12.0,   # IPM
 }
 isogrid_inputs = {
     'flange_width' : 0.3125,
@@ -48,7 +49,14 @@ z_ref = outer_radius
 
 # Angular Data
 angular_increment = inputs['angular_increment']
-A_values = range(angular_increment, angular_increment + 360, angular_increment)
+direction = inputs['direction']
+if direction == 1:
+    A_values = range(angular_increment, angular_increment + 360, angular_increment)
+elif direction == -1:
+    A_values = range(360-angular_increment, -angular_increment, -angular_increment)
+else:
+    print('Invalid value for direction\nExiting')
+    sys.exit(1)
 A_values_fc = range(360-angular_increment, -angular_increment, -angular_increment)
 angular_increment_distance = math.pi/180.0*angular_increment*outer_radius
 A_start = 360
@@ -142,13 +150,20 @@ output_file.write('G17   (set active plane to XY)\n')
 output_file.write('G20   (set units to inches)\n')
 output_file.write('G94   (standard feed rates)\n')
 output_file.write('\n')
+output_file.write('(Script Inputs)\n')
+output_file.write('(Recess Start: {:6.4f})\n'.format(inputs['x_start']))
+output_file.write('(Recess End: {:6.4f})\n'.format(inputs['x_end']))
+output_file.write('(Recess Depth: {:6.4f})\n'.format(inputs['recess_depth']))
+output_file.write('(Feedrate Plunge: {:3.2f})\n'.format(cutter_inputs['feedrate_plunge']))
+output_file.write('(Feedrate Linear: {:3.2f})\n'.format(cutter_inputs['feedrate_linear']))
+output_file.write('(Depth per Pass: {:5.4f})\n'.format(cutter_inputs['depth_per_pass']))
+output_file.write('(Material to Leave: {:5.4f})\n'.format(cutter_inputs['material_to_leave']))
+output_file.write('\n')
 
 # Position at Start
 # Start at A=360 for first cut
 output_file.write('G0 Z {:5.4f} (Safe Z height)\n'.format(safe_z_height))
 output_file.write('G0 Y 0.0000 A {:5.4f}\n'.format(A_start))
-
-
 
 A_absolute = A_start
 done = False
@@ -230,7 +245,7 @@ while done is False:
                 z_local = z_current + dz_current
             else:
                 z_local = z_current
-            A_absolute += angular_increment
+            A_absolute += angular_increment*direction
             output_file.write('G1 Z {:5.4f} A {:6.2f} F {:5.4f} ({:6.2f})\n'.format(z_local, A_absolute, current_feedrate_inverse_t, A))
             total_time += 1.0/current_feedrate_inverse_t
         
@@ -271,7 +286,7 @@ while done is False:
             z_local = z_current + dz_current
         else:
             z_local = z_current
-        A_absolute += angular_increment
+        A_absolute += angular_increment*direction
         output_file.write('G1 Z {:5.4f} A {:6.2f} F {:5.4f} ({:6.2f})\n'.format(z_local, A_absolute, current_feedrate_inverse_t, A))
         total_time += 1.0/current_feedrate_inverse_t
         

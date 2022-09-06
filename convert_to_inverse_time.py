@@ -8,7 +8,7 @@ output_file = open('test_output.nc','w')
 
 # Code assumes we are in G90 (absolute travel mode)
 
-# Assume that we are starting in G94 mode and not G93
+# Assume that we are starting in G94 mode and not G93 (inverse time)
 current_mode = 'G94'
 
 feed_rate = 0.0

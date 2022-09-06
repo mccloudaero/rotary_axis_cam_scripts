@@ -14,10 +14,10 @@ import probe
 #   2) Ignores X-axis, unless it's specified.
 
 inputs = {
-    'outer_diameter' : 12.75,
+    'outer_diameter' : 12.0,
     'hole_diameter' : 0.406,
-    'drill_depth' : 0.42, #0.4
-    'x_loc': -1.938,
+    'drill_depth' : 0.75,
+    'x_loc': -2.938,
     'angular_increment': 30,
     'direction': 1,
     'use_probe_file': False,
@@ -138,7 +138,7 @@ output_file.write('(Script Inputs)\n')
 output_file.write('(X: {:6.4f})\n'.format(inputs['x_loc']))
 output_file.write('(Hole Size: {:6.4f})\n'.format(inputs['hole_diameter']))
 output_file.write('(Angular Increment: {:6.4f})\n'.format(inputs['angular_increment']))
-output_file.write('(Mill Diameter: {:3.2f})\n'.format(cutter_inputs['mill_diameter']))
+output_file.write('(Mill Diameter: {:5.4f})\n'.format(cutter_inputs['mill_diameter']))
 output_file.write('(Feedrate Plunge: {:3.2f})\n'.format(cutter_inputs['feedrate_plunge']))
 output_file.write('(Feedrate Linear: {:3.2f})\n'.format(cutter_inputs['feedrate_linear']))
 output_file.write('\n')
@@ -171,6 +171,12 @@ while done is False:
     hole_num += 1
     total_time += (safe_z_height - z_local)/cutter_inputs['feedrate_plunge']
     if widen_holes is True:
+        # Rough
+        # Move to arc starting point in Y axis at Half the Linear Feed Rate
+        output_file.write('G1 Y {:.4f} F {:.2f}\n'.format(hole_delta_R-0.01, 0.5*cutter_inputs['feedrate_linear']))
+        # Circular arc
+        output_file.write('G2 X {:.4f} Y {:.4f} I {:.4f} J {:.4f} F {:.2f}\n'.format(x_holes, hole_delta_R-0.01, x_holes, 0.0, cutter_inputs['feedrate_linear']))
+        # Final
         # Move to arc starting point in Y axis at Half the Linear Feed Rate
         output_file.write('G1 Y {:.4f} F {:.2f}\n'.format(hole_delta_R, 0.5*cutter_inputs['feedrate_linear']))
         # Circular arc
@@ -195,6 +201,12 @@ while done is False:
         hole_num += 1
         total_time += (safe_z_height - z_local)/cutter_inputs['feedrate_plunge']
         if widen_holes is True:
+            # Rough
+            # Move to arc starting point in Y axis at Half the Linear Feed Rate
+            output_file.write('G1 Y {:.4f} F {:.2f}\n'.format(hole_delta_R-0.01, 0.5*cutter_inputs['feedrate_linear']))
+            # Circular arc
+            output_file.write('G2 X {:.4f} Y {:.4f} I {:.4f} J {:.4f} F {:.2f}\n'.format(x_holes, hole_delta_R-0.01, x_holes, 0.0, cutter_inputs['feedrate_linear']))
+            # Final
             # Move to arc starting point in Y axis at Half the Linear Feed Rate
             output_file.write('G1 Y {:.4f} F {:.2f}\n'.format(hole_delta_R, 0.5*cutter_inputs['feedrate_linear']))
             # Circular arc

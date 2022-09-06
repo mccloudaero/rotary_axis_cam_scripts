@@ -14,19 +14,19 @@ import probe
 #   2) Ignores X-axis, unless it's specified.
 
 inputs = {
-    'outer_diameter' : 12.75,
-    'groove_depth' : 0.1153 + 0.155,
-    'x_loc': -0.1637,
+    'outer_diameter' : 12.0,
+    'groove_depth' : 0.7,
+    'x_loc': -3.625,
     'angular_increment': 15,
     'direction': 1,
-    'use_probe_file': True,
+    'use_probe_file': False,
     'output_file': None
 }
 cutter_inputs = {
-    'safe_clearance' : 0.1,
-    'depth_per_pass' : 0.1153+0.155,
+    'safe_clearance' : 0.25,
+    'depth_per_pass' : 0.05,
     'feedrate_plunge' : 0.75,
-    'feedrate_linear': 7.0, # IPM
+    'feedrate_linear': 5.0, # IPM
 }
 
 if inputs['use_probe_file']:
@@ -58,7 +58,11 @@ if inputs['x_loc'] is not None:
 # Z-axis Data
 safe_z_height = outer_radius + cutter_inputs['safe_clearance']
 groove_depth = inputs['groove_depth']
+if cutter_inputs['depth_per_pass'] < 0.0:
+    print('depth_per_pass needs to be a positive value.\nExiting!')
+    sys.exit(1)
 num_passes = int(math.ceil(groove_depth/cutter_inputs['depth_per_pass']))
+
 
 z_final = outer_radius - groove_depth
 
@@ -106,6 +110,8 @@ if inputs['output_file'] is None:
     # Autocreate filename
     output_filename = 'cut_groove_'
     output_filename += str(inputs['outer_diameter']) + '_od_'
+    if inputs['x_loc'] is not None:
+        output_filename += str(inputs['x_loc']) + '_x_'
     output_filename += str(inputs['groove_depth']) + '_depth'
     if inputs['use_probe_file']: output_filename += '_autolevel'
     output_filename += '.nc'
@@ -123,6 +129,13 @@ output_file.write('G90.1 (set absolute distance mode for arc centers)\n')
 output_file.write('G17   (set active plane to XY)\n')
 output_file.write('G20   (set units to inches)\n')
 output_file.write('G94   (standard feed rates)\n')
+output_file.write('\n')
+output_file.write('(Script Inputs)\n')
+output_file.write('(Groove X: {:6.4f})\n'.format(inputs['x_loc']))
+output_file.write('(Groove Depth: {:6.4f})\n'.format(inputs['groove_depth']))
+output_file.write('(Feedrate Plunge: {:3.2f})\n'.format(cutter_inputs['feedrate_plunge']))
+output_file.write('(Feedrate Linear: {:3.2f})\n'.format(cutter_inputs['feedrate_linear']))
+output_file.write('(Depth per Pass: {:5.4f})\n'.format(cutter_inputs['depth_per_pass']))
 output_file.write('\n')
 
 # Position at Start
@@ -161,7 +174,7 @@ while done is False:
                 dz_current = probe_f(A)[0]
             elif probe_dim == 2:
                 # Interpolate dZ based on X and A
-                dz_current = probe_f(x_groove, a_current)[0,0]
+                dz_current = probe_f(x_groove, A)[0,0]
             z_local = z_current + dz_current
         A_absolute += angular_increment*direction
         output_file.write('G1 Z {:5.4f} A {:6.2f} F {:5.4f} ({:6.2f})\n'.format(z_local, A_absolute, current_feedrate_inverse_t, A))
