@@ -1,4 +1,4 @@
-# Rotary Axis CAM scripts
+# Rotary Axis CAM Scripts
 An open source collection of Python scripts for creating and modifing rotary
 axis G-code, cylindrical probing and performing cylindrical auto-leveling.
 
@@ -12,6 +12,7 @@ axis G-code, cylindrical probing and performing cylindrical auto-leveling.
 #### Create G-Code
 * **cut_groove_cylinder.py**     - Script to cut a groove (one tool width) into a cylindrical part. Can either use a constant depth or interpolates from a pre-probe file
 * **cut_recess_cylinder.py**     - Script to cut a recess (greater than one tool width) into a cylindrical part. Can either use a constant depth or interpolates from a pre-probe file
+* **drill_holes_cylinder.py**    - Script to drill holes circumfrentially around a cylinder at a specific X location
 
 #### Modify G-Code
 * **convert_to_inverse_time.py** - Take G-code using G94 feedrate and convert it to inverse time mode (G93)
@@ -21,9 +22,10 @@ axis G-code, cylindrical probing and performing cylindrical auto-leveling.
 
 ## Detailed Descriptions
 ### General Notes
-* Scripts assume the rotary axis (A) rotates around the X-axis
+* Scripts assume the rotary axis (A) rotates around the X-axis ( Y=0, Z=0 )
 * All of the scripts take inputs via a python dictionary at the beginning of the
 script
+* Script outputs have feed rates specified in Inverse Time mode (G93)
 * Groove is assumed to be one tool width wide
 * Recess is assumed to be greater than one tool width wide
 
@@ -51,10 +53,23 @@ file for cylindrical autoleveling
 #### Cut Groove Cylinder (cut_groove_cylinder.py)
 Used to create a groove of a constant depth. A groove is considered the
 width of one tool (no travel in the X direction). The X location can be
+specified or not.
+
+Can interpolate from a pre-probe file for cylindrical autoleveling
 
 #### Cut Recess Cylinder (cut_recess_cylinder.py)
-Used to create a recess of a constant depth. Can interpolate from a pre-probe
-file for cylindrical autoleveling
+Used to create a recess of a constant depth. User species the start and
+end X location.
+
+Can interpolate from a pre-probe file for cylindrical autoleveling
+
+#### Drill Holes Cylinder (drill_holes_cylinder.py)
+Used to drill holes circumfrentially around a cylinder. The X location
+can be specified or not. Script assumes the holes are spaced evenly around
+the cylinder. User specifies the angular increment. If holes are bigger
+than the tool, then multiple passes will be made to widen the hole.
+
+Can interpolate from a pre-probe file for cylindrical autoleveling
 
 ### Modify
 #### Convert to Inverse Time (convert_to_inverse_time.py)
