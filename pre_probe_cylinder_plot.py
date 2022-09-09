@@ -49,6 +49,8 @@ for i in range(probe_num_X):
     #ax_polar.set_rmax(3.5)
     #plt.show()
     ax.plot(probe_A[i,:],probe_Z[i,:])
+    ax.set_xlabel('A (deg)')
+    ax.set_ylabel('Z/Radius (in)')
     plt.axhline(y=R_ref, color='black')
     plt.axhline(y=R_avg, color='gray')
 
