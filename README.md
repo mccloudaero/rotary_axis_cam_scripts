@@ -8,17 +8,17 @@ axis G-code, cylindrical probing and performing cylindrical auto-leveling.
 #### Probing
 * **pre_probe_cylinder.py**      - Script to create a G-code file for probing a cylinder before machining
 * **pre_probe_cylinder_plot.py** - Script for plotting pre-probe results
+* **probe.py** - Module containing common probe functions
 
 #### Create G-Code
-* **cut_groove_cylinder.py**     - Script to cut a groove (one tool width) into a cylindrical part. Can either use a constant depth or interpolates from a pre-probe file
-* **cut_recess_cylinder.py**     - Script to cut a recess (greater than one tool width) into a cylindrical part. Can either use a constant depth or interpolates from a pre-probe file
-* **drill_holes_cylinder.py**    - Script to drill holes circumfrentially around a cylinder at a specific X location
+* **cut_groove_cylinder.py**      - Script to cut a groove (one tool width) into a cylindrical part. Can either use a constant depth or interpolates from a pre-probe file
+* **cut_recess_cylinder.py**      - Script to cut a recess (greater than one tool width) into a cylindrical part. Can either use a constant depth or interpolates from a pre-probe file
+* **drill_holes_cylinder.py**     - Script to drill holes circumfrentially around a cylinder at a specific X location
 
 #### Modify G-Code
-* **convert_to_inverse_time.py** - Take G-code using G94 feedrate and convert it to inverse time mode (G93)
+* **apply_cylinder_autolevel.py** - Reads in a G-code file, and writes out a new G-code file with cylinderical autoleveling applied
+* **convert_to_inverse_time.py**  - Take G-code using G94 feedrate and convert it to inverse time mode (G93)
 
-### Modules
-* **probe.py** - Module containing common probe functions
 
 ## Detailed Descriptions
 ### General Notes
@@ -72,6 +72,12 @@ than the tool, then multiple passes will be made to widen the hole.
 Can interpolate from a pre-probe file for cylindrical autoleveling
 
 ### Modify
+#### Apply Cylinder Autolevel (apply_cylinder_autolevel.py)
+Script to apply cylinder autolevel process. Modifies a G-code file to adjust
+the Z-axis height using the **probe_results.txt** file obtained from the
+pre-probe process. Requires the user to specify the nominal OD of the part
+to be cut.
+
 #### Convert to Inverse Time (convert_to_inverse_time.py)
 An easy way to generate rotary-axis G-code is to take a "flat" G-code file and
 wrap it in a cylindrical manner. G-code-Ripper by Scorchworks is a great tool
