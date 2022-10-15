@@ -8,10 +8,10 @@ axis G-code, cylindrical probing and performing cylindrical auto-leveling.
 #### Probing
 * **pre_probe_cylinder.py**      - Script to create a G-code file for probing a cylinder before machining
 * **pre_probe_cylinder_plot.py** - Script for plotting pre-probe results
-* **probe.py** - Module containing common probe functions
+* **probe.py** - Python module containing common probe functions
 
 #### Create G-Code
-* **cut_groove_cylinder.py**      - Script to cut a groove (one tool width) into a cylindrical part. Can either use a constant depth or interpolates from a pre-probe file
+* **cut_groove_cylinder.py**      - Script to cut a groove (one tool width) into a cylindrical part. Can either be a constant depth or interpolates from a pre-probe file
 * **cut_recess_cylinder.py**      - Script to cut a recess (greater than one tool width) into a cylindrical part. Can either use a constant depth or interpolates from a pre-probe file
 * **drill_holes_cylinder.py**     - Script to drill holes circumfrentially around a cylinder at a specific X location
 
@@ -61,7 +61,7 @@ Can interpolate from a pre-probe file for cylindrical autoleveling
 Used to create a recess of a constant depth. User species the start and
 end X location.
 
-Can interpolate from a pre-probe file for cylindrical autoleveling
+Can interpolate from a pre-probe file for cyl:qindrical autoleveling
 
 #### Drill Holes Cylinder (drill_holes_cylinder.py)
 Used to drill holes circumfrentially around a cylinder. The X location
