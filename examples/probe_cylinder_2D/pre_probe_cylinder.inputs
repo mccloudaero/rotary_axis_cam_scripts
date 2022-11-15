@@ -1,0 +1,11 @@
+pre_probe_inputs = {
+    'outer_diameter' : 6.0,
+    'num_x_points' : 1,
+    'num_a_points' : 24,
+    'start_x' : 0.0,
+    'end_x' : 0,
+    'safe_clearance': 0.1,
+    'min_probe_depth': -0.1,
+    'probe_feedrate': 1.0,
+    'output_file': None,
+}
