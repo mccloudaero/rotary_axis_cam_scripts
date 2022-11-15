@@ -1,22 +1,36 @@
 #!/usr/bin/env python
 import sys
+import os
 import math
 
 # Script assumes:
 #   1) The center of the cylinder is along the Y=0, Z=0 axis
 #   2) X = 0 is the start of the cylinder
 
+script_inputs_file = './pre_probe_cylinder.inputs'
 pre_probe_inputs = {
-    'outer_diameter' : 12.75,
-    'num_x_points' : 4,
-    'num_a_points' : 24,
-    'start_x' : -3.0,
-    'end_x' : 0,
+    'outer_diameter' : None,
+    'num_x_points' : None,
+    'num_a_points' : None,
+    'start_x' : None,
+    'end_x' : None,
     'safe_clearance': 0.1,
     'min_probe_depth': -0.1,
     'probe_feedrate': 1.0,
     'output_file': None,
 }
+
+if os.path.isfile(script_inputs_file):
+    print('Input file exists, loading inputs file\n')
+    exec(open(script_inputs_file).read())
+else:
+    # Write inputs file
+    try:
+        outputfile = open(script_inputs_file, 'w')
+    except IOError:
+        print('Cannot open', script_inputs_file, '\nExiting!')
+    print('Writing input values to:', script_inputs_file)
+
 
 print('Creating pre-probe G-code file')
 total_points = pre_probe_inputs['num_a_points']*pre_probe_inputs['num_x_points']
