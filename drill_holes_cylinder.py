@@ -1,8 +1,11 @@
 #!/usr/bin/env python
 import sys
+import os
 import math
 import numpy as np
 import probe
+
+import rotary_axis_cam
 
 # Create G-code to cut a groove in cylinder in a manner that accepts pre-probe
 # results. 
@@ -13,7 +16,8 @@ import probe
 #   1) The center of the cylinder is along the Y=0, Z=0 axis
 #   2) Ignores X-axis, unless it's specified.
 
-inputs = {
+script_inputs_file = './drill_holes_cylinder.inputs'
+inputs = { 
     'outer_diameter' : 12.0,
     'hole_diameter' : 0.406,
     'drill_depth' : 0.75,
@@ -30,10 +34,28 @@ cutter_inputs = {
     'feedrate_linear': 1.0, # IPM
 }
 
+if os.path.isfile(script_inputs_file):
+    print('Input file exists, loading inputs file\n')
+    exec(open(script_inputs_file).read())
+else:
+    # Write inputs file
+    try:
+        outputfile = open(script_inputs_file, 'w')
+    except IOError:
+        print('Cannot open', script_inputs_file, '\nExiting!')
+    print('Writing input values to:', script_inputs_file)
+    outputfile.write('inputs = {\n')
+    rotary_axis_cam.write_dict(outputfile, inputs)
+    outputfile.write('cutter_inputs = {\n')
+    rotary_axis_cam.write_dict(outputfile, cutter_inputs)
+    outputfile.close()
+    print('Update drill_holes_cylinder.inputs and re-run')
+    sys.exit()
+
 # Check mill diameter
 if cutter_inputs['mill_diameter'] > inputs['hole_diameter']:
     print('Error! Mill diameter is larger than hole diameter')
-    sys.exit()
+    sys.exit(1)
 
 if inputs['use_probe_file']:
     # Load module for interpolation
