@@ -24,18 +24,20 @@ inputs = {
     'x_loc': -2.938,
     'angular_increment': 30,
     'direction': 1,
+    'peck_drill': False,
     'use_probe_file': False,
     'output_file': None
 }
 cutter_inputs = {
     'mill_diameter' : 0.25,
     'safe_clearance' : 0.1,
-    'feedrate_plunge' : 0.5,
+    'feedrate_plunge' : 0.5, # IPM
     'feedrate_linear': 1.0, # IPM
+    'peck_amount': 0.0,
 }
 
 if os.path.isfile(script_inputs_file):
-    print('Input file exists, loading inputs file\n')
+    print('Input file exists, loading inputs file')
     exec(open(script_inputs_file).read())
 else:
     # Write inputs file
@@ -86,6 +88,7 @@ if inputs['x_loc'] is not None:
 # Z-axis Data
 safe_z_height = outer_radius + cutter_inputs['safe_clearance']
 drill_depth = inputs['drill_depth']
+depth_diams = inputs['drill_depth']/cutter_inputs['mill_diameter']
 
 z_final = outer_radius - drill_depth
 
@@ -95,7 +98,7 @@ total_time = 0.0
 print('\nDrill Holes')
 if inputs['x_loc'] is not None:
     print('X location: {:5.4f}'.format(inputs['x_loc']))
-print('Drill Depth: {:5.4f}'.format(inputs['drill_depth']))
+print('Drill Depth: {:5.4f}, Diameters: {:3.2f}'.format(inputs['drill_depth'],depth_diams)) 
 print('Angular Increment: {:3d} deg'.format(inputs['angular_increment']))
 widen_holes = False
 if cutter_inputs['mill_diameter'] < inputs['hole_diameter']:
@@ -187,9 +190,17 @@ while done is False:
             # Interpolate dZ based on X and A
             dz_current = probe_f(x_holes, a_current)[0,0]
         z_local = z_final + dz_current
+        z_local_ref = z_ref + dz_current
     else:
         z_local = z_final
-    output_file.write('G1 Z {:5.4f} F {:3.2f} (plunge, hole {:3d})\n'.format(z_local, cutter_inputs['feedrate_plunge'], hole_num))
+        z_local_ref = z_ref
+    if inputs['peck_drill'] is True:
+        # Peck drill
+        z_retract = z_local_ref + 0.01
+        output_file.write('G83 Z {:5.4f} Q {:5.4f} R {:5.4f} F {:3.2f} (peck drill, hole {:3d})\n'.format(z_local, cutter_inputs['peck_amount'], z_retract, cutter_inputs['feedrate_plunge'], hole_num))
+    else:
+        # Normal plunge
+        output_file.write('G1 Z {:5.4f} F {:3.2f} (plunge, hole {:3d})\n'.format(z_local, cutter_inputs['feedrate_plunge'], hole_num))
     hole_num += 1
     total_time += (safe_z_height - z_local)/cutter_inputs['feedrate_plunge']
     if widen_holes is True:
@@ -217,9 +228,16 @@ while done is False:
                 # Interpolate dZ based on X and A
                 dz_current = probe_f(x_holes, a_current)[0,0]
             z_local = z_final + dz_current
+            z_local_ref = z_ref + dz_current
         A_absolute += angular_increment*direction
         output_file.write('G0 A {:6.2f} ({:6.2f})\n'.format(A_absolute, A))
-        output_file.write('G1 Z {:5.4f} F {:3.2f} (plunge, hole {:3d})\n'.format(z_local, cutter_inputs['feedrate_plunge'], hole_num))
+        if inputs['peck_drill'] is True:
+            # Peck drill
+            z_retract = z_local_ref + 0.01
+            output_file.write('G83 Z {:5.4f} Q {:5.4f} R {:5.4f} F {:3.2f} (peck drill, hole {:3d})\n'.format(z_local, cutter_inputs['peck_amount'], z_retract, cutter_inputs['feedrate_plunge'], hole_num))
+        else:
+            # Normal plunge
+            output_file.write('G1 Z {:5.4f} F {:3.2f} (plunge, hole {:3d})\n'.format(z_local, cutter_inputs['feedrate_plunge'], hole_num))
         hole_num += 1
         total_time += (safe_z_height - z_local)/cutter_inputs['feedrate_plunge']
         if widen_holes is True:
@@ -247,3 +265,7 @@ output_file.write('(Machine Time Required: {:4.0f} mins)'.format(total_time))
 
 # Close File
 output_file.close()
+
+if depth_diams > 5 and inputs['peck_drill'] is False:
+    print('\n***WARNING***')
+    print('Holes are {:3.2f} diameters deep. Considering using peck drilling instead'.format(depth_diams))
