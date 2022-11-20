@@ -196,7 +196,7 @@ while done is False:
         z_local_ref = z_ref
     if inputs['peck_drill'] is True:
         # Peck drill
-        z_retract = z_local_ref + 0.01
+        z_retract = z_local_ref + 0.05
         output_file.write('G83 Z {:5.4f} Q {:5.4f} R {:5.4f} F {:3.2f} (peck drill, hole {:3d})\n'.format(z_local, cutter_inputs['peck_amount'], z_retract, cutter_inputs['feedrate_plunge'], hole_num))
     else:
         # Normal plunge
@@ -233,7 +233,7 @@ while done is False:
         output_file.write('G0 A {:6.2f} ({:6.2f})\n'.format(A_absolute, A))
         if inputs['peck_drill'] is True:
             # Peck drill
-            z_retract = z_local_ref + 0.01
+            z_retract = z_local_ref + 0.05
             output_file.write('G83 Z {:5.4f} Q {:5.4f} R {:5.4f} F {:3.2f} (peck drill, hole {:3d})\n'.format(z_local, cutter_inputs['peck_amount'], z_retract, cutter_inputs['feedrate_plunge'], hole_num))
         else:
             # Normal plunge

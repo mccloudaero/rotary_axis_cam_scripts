@@ -1,2 +1,3 @@
+*.inputs
 *.nc
 probe_results.txt
