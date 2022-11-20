@@ -3,6 +3,8 @@ import sys
 import os
 import math
 
+import rotary_axis_cam
+
 # Script assumes:
 #   1) The center of the cylinder is along the Y=0, Z=0 axis
 #   2) X = 0 is the start of the cylinder
@@ -30,6 +32,11 @@ else:
     except IOError:
         print('Cannot open', script_inputs_file, '\nExiting!')
     print('Writing input values to:', script_inputs_file)
+    outputfile.write('pre_probe_inputs = {\n')
+    rotary_axis_cam.write_dict(outputfile, pre_probe_inputs)
+    outputfile.close()
+    print('Update pre_probe_cylinder.inputs and re-run')
+    sys.exit()
 
 
 print('Creating pre-probe G-code file')
