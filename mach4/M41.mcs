@@ -1,0 +1,270 @@
+function M41()
+inst = mc.mcGetInstance();
+mc.mcCntlProbeFileClose( inst );-- Close Mach4 ProbeFile
+--
+-- FUNCTION OpenRPF
+-- arguments: inst
+-- return data,numdata,pathRPF,error
+--
+function OpenRPF(inst);
+    local error=0;
+    local hreg=mc.mcRegGetHandle(inst,"iRegs0/ALdata");
+    if hreg==0 or hreg==nil then;
+        wx.wxMessageBox("Register ALdata not found...Abort");
+        error=1;
+        return error;
+    end;
+    local pathRPF=mc.mcRegGetValueString(hreg);
+    if pathRPF=="" then;
+        wx.wxMessageBox("Filepath not found...Abort");
+        error=1;
+        return error;
+    end;
+    local handRPF=assert(io.open(pathRPF,"r"));
+    if handRPF==nil then;
+        wx.wxMessageBox("File not opened...Abort");
+        error=1;
+        return error;
+    end;
+    local data=handRPF:read("*all");
+    if data=="" then;
+        wx.wxMessageBox("No Data...Abort");
+        error=1;
+        return error;
+    end;                            -- Count the number of entries.
+    local i,j,numdata;
+    numdata=0;
+    i=1;
+    j=1;
+    while i do;
+        i=string.find(data,"\n",j+1);
+        if i==nil then break end;
+        j=i;
+        numdata=numdata+1;
+    end;
+    return data,numdata,pathRPF,error;
+end;
+--
+-- FUNCTION OpenGcode
+-- arguments: inst
+-- return: code,error
+--
+function OpenGcode(inst)
+    local error=0;
+    local hreg=mc.mcRegGetHandle(inst,"iRegs0/ALcode");
+    if hreg==nil or hreg==0 then;
+        wx.wxMessageBox("Register 'ALcode' does not exist");
+        error=1;
+        return error;
+    end;
+    local pathCode=mc.mcRegGetValueString(hreg);
+    local hcode=assert(io.open(pathCode,"r"));
+    if hcode==0 or hcode==nil then;
+        wx.wxMessageBox("G code file could not be opened");
+        error=1;
+        return error;
+    end;
+    local code=hcode:read("*all");
+    if code=="" then;
+        wx.wxMessageBox("G code file empty");
+        error=1
+        return error;
+    end;
+    hcode:close();
+    code=string.upper(code);
+    return code,error;
+end;
+--
+-- FUNCTION GetMesh
+-- arguments: code
+-- return: mesh,nummesh
+--
+function GetMesh(code);
+    local i,j,k,l,m,n,recAE,recAL,nummesh;
+    local accum="";
+    local line="";
+    local mesh="";
+    i=string.find(code,"M40");  -- Start iterators after preamble and initialisation probe cycles
+    recAE=i+2;
+    recAL=i+2;
+    i=string.find(code,"G1");
+    if i ~=nil then;               --AE code includes G1, strip on match
+        i=1;
+        while i do;
+            i=string.find(code,"G1",recAE);
+            if i==nil then break end;
+            j=string.find(code,"F",i);
+            k=string.find(code,"\n",j);
+            line=string.sub(code,i+3,j-2);
+            accum=accum..line.."\n";
+            recAE=k
+        end;
+    else;                           --AL code, takes the line prior to G31 match,from after a G0 Z line
+        i=1
+        while i do
+            i=string.find(code,"G0 Z",recAL);
+            j=string.find(code,"\n",i);
+            k=string.find(code,"G0",j);
+            l=string.find(code,"\n",k);
+            m=string.find(code,"G31",l);
+            if m==nil then break end;
+            line=string.sub(code,k+2,m-1);
+            accum=accum..line;
+            recAL=l+1;
+        end;
+    end;
+    mesh=accum;
+    i=1;
+    j=1;
+    nummesh=0;
+    while i do;
+        i=string.find(mesh,"\n",j+1);
+        if i==nil then break end;
+        j=i;
+        nummesh=nummesh+1;
+    end;
+    return mesh,nummesh;
+end
+--
+-- FUNCTION StripData
+-- arguments: data
+-- retun: stripdata,numdata
+--
+function StripData(data);
+    local j,k,l,m,n,diff,numdata;
+    local rec=1;
+    local reptable ={};
+    local repnum=0;
+    local i=1;
+    while i do;
+        i=string.find(data,"X",rec);
+        if i==nil then break end;
+        j=string.find(data,"Y",i);
+        k=string.find(data,"Z",j);
+        l=string.find(data,"X",k);
+        if l==nil then break end;
+        m=string.find(data,"Y",l);
+        n=string.find(data,"Z",m);
+        x1=string.sub(data,i+1,j-2);
+        y1=string.sub(data,j+1,k-2);
+        x2=string.sub(data,l+1,m-2);
+        y2=string.sub(data,m+1,n-2);
+        diff=((x1-x2)^2+(y1-y2)^2)^0.5;   -- Detect a duplicate
+        if diff <0.1 then ;
+            repnum=repnum+1;              -- Add to the table on detection of a duplicate and save the reference
+            reptable[repnum]=i;
+        end;
+        rec=k+1;
+    end;
+    local stripdata=data;                               -- Working copy of data
+    for n=repnum,1,-1 do;                               -- Strip duplicates in reverse order
+        i=string.find(stripdata,"\n",reptable[n]);      -- Find the next eol after the X duplicate
+        local pre=string.sub(stripdata,1,reptable[n]-1) -- Retain all upto but not including the duplicate X,
+        local post=string.sub(stripdata,i+1)            -- and all after but not including the eol
+        stripdata=pre..post
+    end
+    numdata=0;                            -- Recount data points
+    i=1;
+    j=1;
+    while i do;
+        i=string.find(stripdata,"\n",j+1);
+        if i==nil then break end;
+        j=i;
+        numdata=numdata+1;
+    end;
+    return stripdata,numdata;
+end;
+--
+-- FUCTION ModData
+-- arguments: data,mesh
+-- return: moddata
+--
+function ModData(data,mesh);
+    local hreg=mc.mcRegGetHandle(inst,"iRegs0/ALtol");
+    local tol=mc.mcRegGetValue(hreg);
+    local recdata=1;
+    local recmesh=1;
+    local i,j,k,l,p,m,n,pre,post;
+    local moddata="";
+    i=1;
+    while i do;
+        i=string.find(data,"X",recdata);    -- Find the x,y,z and eol on a line of data
+        if i==nil then break end;
+        j=string.find(data,"Y",i);
+        k=string.find(data,"Z",j);
+        p=string.find(data,"\n",k);
+        l=string.find(mesh,"X",recmesh);    -- Find x,y and eol on a line of mesh
+        m=string.find(mesh,"Y",l);
+        n=string.find(mesh,"\n",m);
+        local xdata=string.sub(data,i+1,j-1);-- Extract x data
+        local ydata=string.sub(data,j+1,k-1);-- Extract y data
+        local zdata=string.sub(data,k+1,p-1);-- Extract z data
+        local xmesh=string.sub(mesh,l+1,m-1);-- Extract x mesh
+        local ymesh=string.sub(mesh,m+1,n-1);-- Extract y mesh
+        diff=((xmesh-xdata)^2+(ymesh-ydata)^2)^0.5;-- Calc the difference
+        if diff > tol then;
+            wx.wxMessageBox("Data mismatch at X,Y "..tostring(xdata)..","..tostring(ydata)..string.format("  diff=%.3f",diff));
+        end
+        local line=string.format("X%.4f",xmesh)..string.format(" Y%.4f",ymesh)..string.format(" Z%.4f",zdata).."\n";
+        moddata=moddata..line;
+        recdata=p;                              -- Update iterators
+        recmesh=n;
+    end;
+    return moddata;
+end;
+--
+-- FUNCTION OverWrite
+-- arguments: inst,pathRPF,data
+-- return: error
+--
+function OverWrite(inst,pathRPF,data);
+    local error=0;
+    handRPF=assert(io.open(pathRPF,"w"));
+    if handRPF==nil then;
+        wx.wxMessageBox("File not opened...Abort");
+        error=1;
+        return error;
+    end;
+    handRPF:write(data);
+    handRPF:close();
+    wx.wxMessageBox("OverWrite complete")
+    return error;
+end;
+--
+-- MAIN FUNCTION BODY
+--
+    local data,numdata,pathRPF,code,mesh,nummesh,error;
+    error=0
+    data,numdata,pathRPF,error=OpenRPF(inst);
+    if error~=0 then return end;
+    code,error=OpenGcode(inst);
+    if error~=0 then return end;
+    mesh,nummesh=GetMesh(code);
+    if numdata < nummesh then;
+        wx.wxMessageBox("Fewer data points than mesh points...Abort");
+        return;
+    end;
+    if numdata > nummesh then;
+        wx.wxMessageBox(tostring(numdata-nummesh).." more data points than mesh points....Strip duplicates");
+        data,numdata=StripData(data);
+        if numdata < nummesh then;
+            wx.wxMessageBox("Fewer data points than mesh points...Abort");
+            return;
+        elseif numdata>nummesh then
+            wx.wxMessageBox(tostring(numdata-nummesh).." non duplicate data points remain...Abort");
+            return;
+        end;
+        wx.wxMessageBox("Confirmed");
+    end;
+    data=ModData(data,mesh);
+    OverWrite(inst,pathRPF,data);
+    if error~=0 then;
+        return;
+    end;
+return;
+end;
+
+if (mc.mcInEditor() == 1) then;
+    M41();
+end;
+

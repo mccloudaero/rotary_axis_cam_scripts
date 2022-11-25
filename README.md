@@ -40,6 +40,9 @@ The code outputs the results to a text file, with the default name
 **probe_results.txt**. The resulting data file containing can be plotted
 using the **pre_probe_cylinder_plot.py** script.
 
+This script relies on the M40 and M41 macros for the probe operations. Macros
+for Mach4 are included in the /mach4 folder.
+
 #### Pre Probe Cylinder Plot (pre_probe_cylinder_plot.py)
 Plots the probe results using matplotlib. The script detects if the data is 
 2D or 3D and plots the data accordingly.

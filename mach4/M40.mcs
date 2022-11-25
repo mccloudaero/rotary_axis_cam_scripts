@@ -1,0 +1,50 @@
+function M40()
+--
+-- This macro and its partner M41 are written to be used with the Rotary Axis CAM tools package
+--
+-- Significant edits, particularly format edits, will likely result in failure of the file processing functions of M41.
+--
+--                  SET UP INSTRUCTIONS
+-- To pass the full path and filename of the RawProbeFile and the G-code job to M41 uses Mach4 Regfile functionality.
+-- 1) Ensure the RegFile plugin is enabled in Configure/Mach/Plugins page.
+-- 2) Open Configure/Plugins/Regfile-New Fangled Solutions plugin configurator and add "ALcode","ALdata" and "ALtol" on the
+--      instance register tab.
+-- 3) Set the initial value of ALtol to 0.02
+--      ALcode and ALdata will get written when M40 runs.
+--      These registers are persistant.
+--      The values of the registers can be seen (and edited) Diagnostic/Refile-New Fangled Solutions and expand iRegs0.
+--
+inst = mc.mcGetInstance();
+    -- create the wxFrame window
+    mainframe = wx.wxFrame( wx.NULL,          -- no parent
+                        wx.wxID_ANY,          -- whatever for wxWindow ID
+                        "DummyFrame", -- frame caption
+                        wx.wxDefaultPosition, -- place the frame in default position
+                        wx.wxDefaultSize,     -- default frame size
+                        wx.wxDEFAULT_FRAME_STYLE ); -- use default frame styles
+
+    -- create a panel in the frame
+    panel = wx.wxPanel(mainframe, wx.wxID_ANY);--We are not going to show it but we need to have this to use the File dialog
+
+local file = wx.wxFileDialog(panel, "Select Probe File", "", "", "Text files (*.txt)|*.txt|Tap files (*.tap)|*.tap", 
+                             wx.wxFD_SAVE,wx.wxDefaultPosition,wx.wxDefaultSize, "File Dialog" );
+        if(file:ShowModal() == wx.wxID_OK)then;
+            local pathRPF = file:GetPath();
+-- Edit this format statement at your own risk   
+			mc.mcCntlProbeFileOpen(inst, pathRPF, "X%.4AXIS_X Y%.4AXIS_Y Z%.4AXIS_Z A%.3AXIS_A\r\n", true);
+-- Save the RawProbFile filename and path to iRegs0/ALdata
+            local hreg=mc.mcRegGetHandle(inst,"iRegs0/ALdata");
+            if hreg==nil or hreg==0 then wx.wxMessageBox("Register 'ALdata' does not exist") end;
+            mc.mcRegSetValueString(hreg,pathRPF);
+-- Save the G Code filename and path to iRegs0/ALcode
+            local pathCode= mc.mcCntlGetGcodeFileName(inst) ;
+            hreg=mc.mcRegGetHandle(inst,"iRegs0/ALcode");
+            if hreg==nil or hreg==0 then wx.wxMessageBox("Register 'ALcode' does not exist") end;
+            mc.mcRegSetValueString(hreg,pathCode);
+        end 
+
+end
+
+if (mc.mcInEditor() == 1) then
+    M40()
+end
