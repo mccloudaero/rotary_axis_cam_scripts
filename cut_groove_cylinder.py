@@ -1,8 +1,11 @@
 #!/usr/bin/env python
+import os
 import sys
 import math
 import numpy as np
 import probe
+
+import rotary_axis_cam
 
 # Create G-code to cut a groove in cylinder in a manner that accepts pre-probe
 # results. 
@@ -13,6 +16,7 @@ import probe
 #   1) The center of the cylinder is along the Y=0, Z=0 axis
 #   2) Ignores X-axis, unless it's specified.
 
+script_inputs_file = './cut_groove_cylinder.inputs'
 inputs = {
     'outer_diameter' : 12.0,
     'groove_depth' : 0.7,
@@ -28,6 +32,24 @@ cutter_inputs = {
     'feedrate_plunge' : 0.75,
     'feedrate_linear': 5.0, # IPM
 }
+
+if os.path.isfile(script_inputs_file):
+    print('Input file exists, loading inputs file')
+    exec(open(script_inputs_file).read())
+else:
+    # Write inputs file
+    try:
+        outputfile = open(script_inputs_file, 'w')
+    except IOError:
+        print('Cannot open', script_inputs_file, '\nExiting!')
+    print('Writing input values to:', script_inputs_file)
+    outputfile.write('inputs = {\n')
+    rotary_axis_cam.write_dict(outputfile, inputs)
+    outputfile.write('cutter_inputs = {\n')
+    rotary_axis_cam.write_dict(outputfile, cutter_inputs)
+    outputfile.close()
+    print('Update cut_groove_cylinder.inputs and re-run')
+    sys.exit()
 
 if inputs['use_probe_file']:
     # Load module for interpolation
