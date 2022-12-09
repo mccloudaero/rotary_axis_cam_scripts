@@ -2,6 +2,7 @@
 import sys
 import math
 import re
+import getopt
 import numpy as np
 from scipy import interpolate
 
@@ -10,27 +11,53 @@ import probe
 # Code assumes we are in G90   (absolute travel mode)
 # Code assumes we are in G90.1 (absolute arc center mode)
 
-
-input_file = open('input.nc','r')
-output_file = open('output.nc','w')
+usage = 'apply_cylinder_autolevel.py input=input.nc output=output.nc'
+input_filename = 'input.nc'
+output_filename = 'output.nc'
+probe_filename = 'probe_results.tx' 
 
 # The input Gcode file is built assuming a particular reference height (z_ref).
 # Typically this will be the nominal outer diameter of the material.
 z_ref = 3.0
 
-# Variables and defaults
-G_commands = ['G0','G00','G1','G01']
-z_safe = None
+try:
+    opts, args = getopt.getopt(sys.argv[1:], "h", ['input=', 'output='])
 
-x_current = 0
-a_current = 0
+except:
+    print(usage)
+    sys.exit(1)
 
-# Store if last line is 'plunge', 'first' or None
-last_line = None
-last_Z = None
+for opt, arg in opts:
+    if opt == '-h':
+        print(usage)
+    if opt == '--input=':
+        input_filename = arg
+    if opt == '--output=':
+        output_filename = arg
+    if opt == '--probe=':
+        probe_filename = arg
 
+print('\nReading Input Gcode')
+try:
+    input_file = open(input_filename,'r')
+except:
+    print('Error reading input file!\nExiting')
+    sys.exit(1)
+
+try:
+    output_file = open(output_filename,'w')
+except:
+    print('Error opening output file!\nExiting')
+    sys.exit(1)
+
+# Read probe data and setup
 print('\nReading Probe Data')
-probe_num_X, probe_num_A, probe_X, probe_Z, probe_A = probe.read_cylinder_probe_file('probe_file.txt')
+try:
+    probe_num_X, probe_num_A, probe_X, probe_Z, probe_A = probe.read_cylinder_probe_file('probe_file.txt')
+
+except:
+    print('Error reading probe file!\nExiting')
+    sys.exit(1)
 probe_X_values = np.unique(probe_X)
 probe_A_values = np.unique(probe_A)
 
@@ -42,6 +69,18 @@ if probe_X_values.size == 1:
 else:
     print('Probe Data is 3D (X, A and Z)')
     probe_dim = 2
+
+
+# Setup Gcode mods
+G_commands = ['G0','G00','G1','G01']
+z_safe = None
+
+x_current = 0
+a_current = 0
+
+# Store if last line is 'plunge', 'first' or None
+last_line = None
+last_Z = None
 
 # Convert Z to delta Z map
 dZ = probe_Z - z_ref
@@ -61,6 +100,8 @@ elif probe_dim == 2:
     max_error, avg_error = probe.interpolation_check(probe_f, probe_X_values, probe_A_values, dZ)
     print('  Max Error: {:5.4e}'.format(max_error))
 
+# Process Gcode
+print('\nProcessing Gcode')
 for line in input_file:
     if line[0] == '%':
         # Don't modify
