@@ -7,14 +7,12 @@ from scipy import interpolate
 def read_cylinder_probe_file(filename):
 
     X, Y, Z, A = np.loadtxt(filename, unpack=True)
-    print(X,Z,A)
     X_values = np.unique(X)
     num_X = X_values.size
     Z_values = np.unique(Z)
     num_Z = Z_values.size
     A_values = np.unique(A)
     num_A = A_values.size
-    print(num_X,num_Z,num_A)
 
     if num_X > 1 and num_Z == 1:
         # Probe is edge data
