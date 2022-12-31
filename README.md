@@ -5,20 +5,20 @@ axis G-code, cylindrical probing and performing cylindrical auto-leveling.
 ## Package Contents  
 
 ### Scripts
- * **Probing
-* **pre_probe_cylinder.py**      - Script to create a G-code file for probing a cylinder before machining
-* **pre_probe_cylinder_edge.py** - Script to create a G-code file for probing a cylinder edge before machining
-* **pre_probe_cylinder_plot.py** - Script for plotting pre-probe results
-* **probe.py** - Python module containing common probe functions
+* **Probing**
+  * **pre_probe_cylinder.py**      - Script to create a G-code file for probing a cylinder before machining
+  * **pre_probe_cylinder_edge.py** - Script to create a G-code file for probing a cylinder edge before machining
+  * **pre_probe_cylinder_plot.py** - Script for plotting pre-probe results
+  * **probe.py** - Python module containing common probe functions
 
- * **Create G-Code
-* **cut_groove_cylinder.py**      - Script to cut a groove (one tool width) into a cylindrical part. Can either be a constant depth or interpolates from a pre-probe file
-* **cut_recess_cylinder.py**      - Script to cut a recess (greater than one tool width) into a cylindrical part. Can either use a constant depth or interpolates from a pre-probe file
-* **drill_holes_cylinder.py**     - Script to drill holes circumfrentially around a cylinder at a specific X location
+* **Create G-Code**
+  * **cut_groove_cylinder.py**      - Script to cut a groove (one tool width) into a cylindrical part. Can either be a constant depth or interpolates from a pre-probe file
+  * **cut_recess_cylinder.py**      - Script to cut a recess (greater than one tool width) into a cylindrical part. Can either use a constant depth or interpolates from a pre-probe file
+  * **drill_holes_cylinder.py**     - Script to drill holes circumfrentially around a cylinder at a specific X location
 
- * **Modify G-Code
-* **apply_cylinder_autolevel.py** - Reads in a G-code file, and writes out a new G-code file with cylinderical autoleveling applied
-* **convert_to_inverse_time.py**  - Take G-code using G94 feedrate and convert it to inverse time mode (G93)
+* **Modify G-Code**
+  * **apply_cylinder_autolevel.py** - Reads in a G-code file, and writes out a new G-code file with cylinderical autoleveling applied
+  * **convert_to_inverse_time.py**  - Take G-code using G94 feedrate and convert it to inverse time mode (G93)
 
 
 ## Detailed Descriptions
