@@ -7,6 +7,7 @@ axis G-code, cylindrical probing and performing cylindrical auto-leveling.
 ### Scripts
  * **Probing
 * **pre_probe_cylinder.py**      - Script to create a G-code file for probing a cylinder before machining
+* **pre_probe_cylinder_edge.py** - Script to create a G-code file for probing a cylinder edge before machining
 * **pre_probe_cylinder_plot.py** - Script for plotting pre-probe results
 * **probe.py** - Python module containing common probe functions
 
