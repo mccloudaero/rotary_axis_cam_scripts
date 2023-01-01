@@ -25,7 +25,8 @@ inputs = {
     'angular_increment': 30,
     'direction': 1,
     'peck_drill': False,
-    'use_probe_file': False,
+    'use_Z_probe_file': False,
+    'use_X_probe_file': False,
     'output_file': None
 }
 cutter_inputs = {
@@ -59,7 +60,7 @@ if cutter_inputs['mill_diameter'] > inputs['hole_diameter']:
     print('Error! Mill diameter is larger than hole diameter')
     sys.exit(1)
 
-if inputs['use_probe_file']:
+if inputs['use_Z_probe_file']:
     # Load module for interpolation
     from scipy import interpolate
 
@@ -108,20 +109,20 @@ if cutter_inputs['mill_diameter'] < inputs['hole_diameter']:
     print(hole_delta_R)
 
 # Read Probe Data if needed
-if inputs['use_probe_file']:
-    print('\nReading Probe Data')
+if inputs['use_Z_probe_file']:
+    print('\nReading Z Probe Data')
     probe_num_X, probe_num_A, probe_X, probe_Z, probe_A = probe.read_cylinder_probe_file('probe_results.txt')
     probe_X_values = np.unique(probe_X)
     probe_A_values = np.unique(probe_A)
     
     # Check Probe Data dimensions
-    probe_dim = None
+    Z_probe_dim = None
     if probe_X_values.size == 1:
         print('Probe Data is 2D (A and Z)')
-        probe_dim = 1
+        Z_probe_dim = 1
     else:
         print('Probe Data is 3D (X, A and Z)')
-        probe_dim = 2
+        Z_probe_dim = 2
         
     # Convert Z to delta Z map
     dZ = probe_Z - z_ref
@@ -131,8 +132,30 @@ if inputs['use_probe_file']:
     print('  dZ Min: {:5.4f}'.format(dZ_min))
     print('  dZ Max: {:5.4f}'.format(dZ_max))
     
-    probe_f = probe.setup_interpolation(probe_X_values, probe_A_values, dZ, probe_dim)
+    Z_probe_f = probe.setup_interpolation(probe_X_values, probe_A_values, dZ, Z_probe_dim)
 
+if inputs['use_X_probe_file']:
+    print('\nReading X Probe Data')
+    probe_num_X, probe_num_A, probe_X, probe_Z, probe_A = probe.read_cylinder_probe_file('probe_results_edge.txt')
+    probe_X_values = np.unique(probe_X)
+    probe_Z_values = np.unique(probe_Z)
+    probe_A_values = np.unique(probe_A)
+    
+    # Check Probe Data dimensions
+    X_probe_dim = None
+    if probe_Z_values.size == 1:
+        print('Probe Data is 2D (A and X)')
+        X_probe_dim = 1
+    else:
+        print('Bad Probe Dimensions.\nExiting!')
+        sys.exit(1)
+
+    dX_min = np.min(probe_X_values)
+    dX_max = np.max(probe_X_values)
+    print('  dX Min: {:5.4f}'.format(dX_min))
+    print('  dX Max: {:5.4f}'.format(dX_max))
+    
+    X_probe_f = probe.setup_interpolation(probe_Z_values, probe_A_values, probe_X, X_probe_dim)
 
 # Open Output File
 if inputs['output_file'] is None:
@@ -142,7 +165,7 @@ if inputs['output_file'] is None:
     if inputs['x_loc'] is not None:
         output_filename += str(inputs['x_loc']) + '_x_'
     output_filename += str(inputs['drill_depth']) + '_depth'
-    if inputs['use_probe_file']: output_filename += '_autolevel'
+    if inputs['use_Z_probe_file']: output_filename += '_autolevel'
     output_filename += '.nc'
     
  
@@ -181,19 +204,25 @@ done = False
 hole_num = 1
 while done is False:
     # First Hole at A = 0
-    # Plunge into material
-    if inputs['use_probe_file']:
-        if probe_dim == 1:
+    # Determine probe offsets
+    if inputs['use_Z_probe_file']:
+        if Z_probe_dim == 1:
             # Interpolate dZ based on A only
-            dz_current = probe_f(0)[0]
-        elif probe_dim == 2:
+            dz_current = Z_probe_f(0)[0]
+        elif Z_probe_dim == 2:
             # Interpolate dZ based on X and A
-            dz_current = probe_f(x_holes, a_current)[0,0]
+            dz_current = Z_probe_f(x_holes, a_current)[0,0]
         z_local = z_final + dz_current
         z_local_ref = z_ref + dz_current
     else:
         z_local = z_final
         z_local_ref = z_ref
+    if inputs['use_X_probe_file']:
+        # Interpolate dX based on A only
+        dx_current = X_probe_f(0)[0]
+        x_local = x_holes + dx_current 
+        output_file.write('G0 X {:5.4f} (dx{:5.4f})\n'.format(x_local, dx_current))
+    # Plunge into material
     if inputs['peck_drill'] is True:
         # Peck drill
         z_retract = z_local_ref + 0.05
@@ -220,17 +249,25 @@ while done is False:
     output_file.write('G0 Z {:5.4f} (Safe Z height)\n'.format(safe_z_height))
 
     for A in A_values:
-        if inputs['use_probe_file']:
-            if probe_dim == 1:
+        # Go to next A
+        output_file.write('G0 A {:6.2f} ({:6.2f})\n'.format(A_absolute, A))
+        # Determine probe offsets
+        if inputs['use_Z_probe_file']:
+            if Z_probe_dim == 1:
                 # Interpolate dZ based on A only
-                dz_current = probe_f(A)[0]
-            elif probe_dim == 2:
+                dz_current = Z_probe_f(A)[0]
+            elif Z_probe_dim == 2:
                 # Interpolate dZ based on X and A
-                dz_current = probe_f(x_holes, a_current)[0,0]
+                dz_current = Z_probe_f(x_holes, a_current)[0,0]
             z_local = z_final + dz_current
             z_local_ref = z_ref + dz_current
+        if inputs['use_X_probe_file']:
+            # Interpolate dX based on A only
+            dx_current = X_probe_f(A)[0]
+            x_local = x_holes + dx_current 
+            output_file.write('G0 X {:5.4f} (dx{:5.4f})\n'.format(x_local, dx_current))
         A_absolute += angular_increment*direction
-        output_file.write('G0 A {:6.2f} ({:6.2f})\n'.format(A_absolute, A))
+        # Plunge into material
         if inputs['peck_drill'] is True:
             # Peck drill
             z_retract = z_local_ref + 0.05
