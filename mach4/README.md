@@ -1,4 +1,4 @@
-# Mach4 Macros for Cylindrical Autoleveling
+# Mach4 Macros for Probing
 The Mach4 macros contained in this are based off of those obtained on [this
 thread](http://www.cncsoftwaretools.com/forum/viewtopic.php?f=4&t=336).
 Thanks to Craig aka joeaverage on the [Mach Support Forum](machsupport.com/forum).
