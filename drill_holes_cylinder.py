@@ -250,6 +250,7 @@ while done is False:
 
     for A in A_values:
         # Go to next A
+        A_absolute += angular_increment*direction
         output_file.write('G0 A {:6.2f} ({:6.2f})\n'.format(A_absolute, A))
         # Determine probe offsets
         if inputs['use_Z_probe_file']:
@@ -266,7 +267,6 @@ while done is False:
             dx_current = X_probe_f(A)[0]
             x_local = x_holes + dx_current 
             output_file.write('G0 X {:5.4f} (dx{:5.4f})\n'.format(x_local, dx_current))
-        A_absolute += angular_increment*direction
         # Plunge into material
         if inputs['peck_drill'] is True:
             # Peck drill
