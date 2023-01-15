@@ -83,8 +83,9 @@ groove_depth = inputs['groove_depth']
 if cutter_inputs['depth_per_pass'] < 0.0:
     print('depth_per_pass needs to be a positive value.\nExiting!')
     sys.exit(1)
+elif cutter_inputs['depth_per_pass'] > groove_depth:
+    cutter_inputs['depth_per_pass'] = groove_depth
 num_passes = int(math.ceil(groove_depth/cutter_inputs['depth_per_pass']))
-
 
 z_final = outer_radius - groove_depth
 
